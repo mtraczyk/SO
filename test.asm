@@ -2,6 +2,7 @@ section .bss
 	digitSpace resb 100
 	digitSpacePos resb 8
 	printSpace resb 8
+	name resb 16
 %macro print 1
 	mov rax, %1
 	mov [printSpace], rax
@@ -25,9 +26,6 @@ section .bss
 	mov rax, %1
 %%printRAX:
 	mov rcx, digitSpace
-;	mov rbx, 10
-;	mov [rcx], rbx
-;	inc rcx
 	mov [digitSpacePos], rcx
 
 %%printRAXLoop:
@@ -440,15 +438,31 @@ global _start
 section .text
 
 _start:
-    mov rbx, [rsp]          ; Number of polynomial`s coefficients
-    imul rbx, 0x08
+    mov rax, 0
+    mov rdi, 0
+    mov rsi, name
+    mov rdx, 1
+    syscall
+
+    printVal [name]
+
+    cmp rax, 0
+    jl error
+
+    je exit
+
+    mov rbp, [rsp]          ; Number of polynomial`s coefficients
+    imul rbp, 0x08
 
 read_coefficients:
-    printVal rbx
-    jmp exit
+    cmp rbp, 0x08
+    je exit
+    mov rdi, [rsp + rbp]
+    sub rbp, 0x08
+    jmp atoi
 
 atoi:
-    mov rax, 0              ; Set initial total to 0
+    xor rax, rax              ; Set initial total to 0
 
 convert:
     movzx rsi, byte [rdi]   ; Get the current character
@@ -470,8 +484,11 @@ convert:
 
 error:
     mov rax, -1             ; Return -1 on error
+    printVal rax
+    jmp exit
 
 done:
+    printVal rax
     jmp read_coefficients
 
 exit:
