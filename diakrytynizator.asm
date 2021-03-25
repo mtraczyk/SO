@@ -12,6 +12,7 @@ DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
 STDOUT	  equ 1
 SYS_WRITE equ 1
+NULL      equ 0           ; ASCII code for NULL.
 
 section .bss
 
@@ -22,31 +23,32 @@ strNum    resb 20         ; Used to store integers as strings.
   mov     rax, %1         ; Get the integer.
   mov     rcx, 0          ; Digit count equals zero.
 
-divideLoop:
+%%divideLoop:
   mov     edx, 0
-  div     DEC_BASIS       ; Divide number by 10.
+  mov     rbx, DEC_BASIS
+  div     rbx             ; Divide number by 10.
   push    rdx             ; Push remainder.
   inc     rcx             ; Increment digit count.
   cmp     rax, 0          ; if (result > 0)
-  jne     divideLoop      ;   goto divideLoop
+  jne     %%divideLoop      ;   goto divideLoop
 
   mov     rbx, strNum     ; Get address of string.
   mov     rdi, START_IND  ; Current index is zero.
 
-popLoop:
+%%popLoop:
   pop     rax             ; Pop digit.
   add     al, ZERO_CHAR   ; Digit into ASCII.
 
   ; Storing digit in strNum.
-  move    byte [rbx+rdi], al
+  mov     byte [rbx+rdi], al
   inc     rdi             ; Increment index.
   dec     rcx             ; Decrease number of digits left to change into ASCII.
   cmp     rcx, 0          ; Check whether there are still digits to process.
-  jne     popLoop
+  jne     %%popLoop
 
   mov     byte [rbx+rdi], NULL
 
-writeToStdout:
+%%writeToStdout:
   mov     rax, SYS_WRITE
   mov     rdi, STDOUT
   mov     rsi, [rbx+rdi]
@@ -55,10 +57,9 @@ writeToStdout:
 
   dec     rdi
   cmp     rdi, -1        ; Check whether there are still some digits.
-  jne     writeToStdout
+  jne     %%writeToStdout
 
 %endmacro
-
 
 global _start
 
