@@ -9,8 +9,56 @@ FD_N_READ equ 1           ; First digit hasn't been already read.
 ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
 DEC_BASIS equ 10          ; Decimal basis.
+START_IND equ 0           ; Starting index.
+STDOUT	  equ 1
+SYS_WRITE equ 1
 
 section .bss
+
+strNum    resb 20         ; Used to store integers as strings.
+
+; Macro used for printing integers.
+%macro printVa 1
+  mov     rax, %1         ; Get the integer.
+  mov     rcx, 0          ; Digit count equals zero.
+
+divideLoop:
+  mov     edx, 0
+  div     DEC_BASIS       ; Divide number by 10.
+  push    rdx             ; Push remainder.
+  inc     rcx             ; Increment digit count.
+  cmp     rax, 0          ; if (result > 0)
+  jne     divideLoop      ;   goto divideLoop
+
+  mov     rbx, strNum     ; Get address of string.
+  mov     rdi, START_IND  ; Current index is zero.
+
+popLoop:
+  pop     rax             ; Pop digit.
+  add     al, ZERO_CHAR   ; Digit into ASCII.
+
+  ; Storing digit in strNum.
+  move    byte [rbx+rdi], al
+  inc     rdi             ; Increment index.
+  dec     rcx             ; Decrease number of digits left to change into ASCII.
+  cmp     rcx, 0          ; Check whether there are still digits to process.
+  jne     popLoop
+
+  mov     byte [rbx+rdi], NULL
+
+writeToStdout:
+  mov     rax, SYS_WRITE
+  mov     rdi, STDOUT
+  mov     rsi, [rbx+rdi]
+  mov     rdx, 1         ; Write one byte to stdin.
+  syscall
+
+  dec     rdi
+  cmp     rdi, -1        ; Check whether there are still some digits.
+  jne     writeToStdout
+
+%endmacro
+
 
 global _start
 
@@ -23,7 +71,7 @@ _start:
 
 ; Calculates value under rax register modulo 0x10FF80.
 _modulo:
-  movabs rdx, 0x787c03a5c11c4499
+  mov    rdx, 0x787c03a5c11c4499
   mov    rax, rdi
   mul    rdx
   mov    rax, rdi
@@ -36,7 +84,7 @@ _modulo:
 read_coefficients:
   cmp     rbp, 0x08       ; Checks whether there are coefficients to parse.
   je      read_input      ; No coefficients to parse - starts reading stdin.
-  mov     rdi, [rsp + rbp]; Stores next coefficient to parse in rdi register.
+  mov     rdi, [rsp+rbp]  ; Stores next coefficient to parse in rdi register.
   sub     rbp, 0x08       ; Where to look for next coefficient on the stack.
   jmp     atoi            ; Convert coefficient to an integer.
 
@@ -69,7 +117,7 @@ convert:
   jmp     convert
 
 number_read:
-  push    rax             ; Store integer on the stack.
+  printVa rax
   jmp     read_coefficients
 
 ; Parses input from stdin.
