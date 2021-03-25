@@ -13,10 +13,15 @@ START_IND equ 0           ; Starting index.
 STDOUT	  equ 1
 SYS_WRITE equ 1
 NULL      equ 0           ; ASCII code for NULL.
+MODULO    equ 0x10FF80
 
 section .bss
 
 strNum    resb 20         ; Used to store integers as strings.
+	digitSpace resb 100
+	digitSpacePos resb 8
+	printSpace resb 8
+	name resb 16
 
 ; Macro used for printing integers.
 %macro printVa 1
@@ -30,33 +35,37 @@ strNum    resb 20         ; Used to store integers as strings.
   push    rdx             ; Push remainder.
   inc     rcx             ; Increment digit count.
   cmp     rax, 0          ; if (result > 0)
-  jne     %%divideLoop      ;   goto divideLoop
+  jne     %%divideLoop    ;   goto divideLoop
 
   mov     rbx, strNum     ; Get address of string.
-  mov     rdi, START_IND  ; Current index is zero.
+  mov     r10, START_IND  ; Current index is zero.
 
 %%popLoop:
   pop     rax             ; Pop digit.
   add     al, ZERO_CHAR   ; Digit into ASCII.
 
   ; Storing digit in strNum.
-  mov     byte [rbx+rdi], al
-  inc     rdi             ; Increment index.
+  mov     byte [rbx+r10], al
+  inc     r10             ; Increment index.
   dec     rcx             ; Decrease number of digits left to change into ASCII.
   cmp     rcx, 0          ; Check whether there are still digits to process.
   jne     %%popLoop
 
-  mov     byte [rbx+rdi], NULL
+  dec     r10
 
 %%writeToStdout:
   mov     rax, SYS_WRITE
   mov     rdi, STDOUT
-  mov     rsi, [rbx+rdi]
-  mov     rdx, 1         ; Write one byte to stdin.
+  lea     r11, [rbx+r10]
+  mov     rsi, r11
+  mov     rdx, 1          ; Write one byte to stdout.
   syscall
 
-  dec     rdi
-  cmp     rdi, -1        ; Check whether there are still some digits.
+  cmp     rax, 0
+  jl      error
+
+  dec     r10
+  cmp     r10, -1         ; Check whether there are still some digits.
   jne     %%writeToStdout
 
 %endmacro
@@ -73,11 +82,11 @@ _start:
 ; Calculates value under rax register modulo 0x10FF80.
 _modulo:
   mov    rdx, 0x787c03a5c11c4499
-  mov    rax, rdi
+  mov    r12, rax
   mul    rdx
-  mov    rax, rdi
+  mov    rax, r12
   shr    rdx, 0x13
-  imul   rdx, rdx, 0x10ff80
+  imul   rdx, rdx, MODULO
   sub    rax, rdx
   ret
 
@@ -128,11 +137,11 @@ read_input:
 ; Exit with return code 0.
 error:
   mov     eax, SYS_EXIT
-  mov     edi, EXIT_FAI         ; Return 1 on error
+  mov     edi, EXIT_FAI   ; Return 1 on error
   syscall
 
 ; Exit with return code 0.
 exit:
   mov     eax, SYS_EXIT
-  mov     edi, EXIT_SUC         ; Return code is zero.
+  mov     edi, EXIT_SUC   ; Return code is zero.
   syscall
