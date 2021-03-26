@@ -18,10 +18,6 @@ MODULO    equ 0x10FF80
 section .bss
 
 strNum    resb 20         ; Used to store integers as strings.
-	digitSpace resb 100
-	digitSpacePos resb 8
-	printSpace resb 8
-	name resb 16
 
 ; Macro used for printing integers.
 %macro printVa 1
@@ -51,12 +47,12 @@ strNum    resb 20         ; Used to store integers as strings.
   cmp     rcx, 0          ; Check whether there are still digits to process.
   jne     %%popLoop
 
-  dec     r10
+  xor     r12, r12
 
 %%writeToStdout:
   mov     rax, SYS_WRITE
   mov     rdi, STDOUT
-  lea     r11, [rbx+r10]
+  lea     r11, [rbx+r12]
   mov     rsi, r11
   mov     rdx, 1          ; Write one byte to stdout.
   syscall
@@ -64,8 +60,8 @@ strNum    resb 20         ; Used to store integers as strings.
   cmp     rax, 0
   jl      error
 
-  dec     r10
-  cmp     r10, -1         ; Check whether there are still some digits.
+  inc     r12
+  cmp     r12, r10        ; Check whether there are still some digits.
   jne     %%writeToStdout
 
 %endmacro
@@ -75,8 +71,9 @@ global _start
 section .text
 
 _start:
-  mov     rbp, [rsp]      ; Number of polynomial's coefficients.
-  imul    rbp, 0x08       ; Number of coefficients multiplied by 0x08.
+  mov     rbp, [rsp]      ; Number of polynomial's coefficients plus one.
+  lea     rbp, [rbp*8]    ; Number of coefficients multiplied by 0x08.
+  mov     r14, rbp
   jmp     read_coefficients
 
 ; Calculates value under rax register modulo 0x10FF80.
@@ -119,20 +116,31 @@ convert:
   cmp     rsi, NINE_CHAR  ; Anything greater than 9 is invalid.
   jg      error
   sub     rsi, ZERO_CHAR  ; Convert from ASCII to decimal.
-  imul    rax, DEC_BASIS  ; Multiply total by 10.
-  add     rax, rsi        ; Add current digit to total.
+  lea     rax, [rax*4+rax]
+  lea     rax, [rax*2+rsi]
   call    _modulo         ; Get value under rax modulo 0x10FF80.
   inc     rdi             ; Get the address of the next character.
   mov     r10, FD_READ    ; First digit is read.
   jmp     convert
 
 number_read:
-  printVa rax
+  add     r14, 0x08
+  mov     [rsp+r14], rax
   jmp     read_coefficients
 
 ; Parses input from stdin.
 read_input:
-  jmp     exit
+  mov     r13, [rsp]
+  dec     r13
+
+display_coefficients:
+  mov     rax, [rsp+r14]
+  printVa rax
+  sub     r14, 0x08
+  dec     r13
+  cmp     r13, 0
+  je      exit
+  jmp     display_coefficients
 
 ; Exit with return code 0.
 error:
