@@ -77,7 +77,7 @@ _start:
   jmp     read_coefficients
 
 ; Calculates value under rax register modulo 0x10FF80.
-_modulo:
+modulo:
   mov    rdx, 0x787c03a5c11c4499
   mov    r12, rax
   mul    rdx
@@ -85,7 +85,7 @@ _modulo:
   shr    rdx, 0x13
   imul   rdx, rdx, MODULO
   sub    rax, rdx
-  ret
+  jmp    convert
 
 ; Parses coefficients and stores their value modulo 0x10FF80 on the stack.
 read_coefficients:
@@ -118,9 +118,11 @@ convert:
   sub     rsi, ZERO_CHAR  ; Convert from ASCII to decimal.
   lea     rax, [rax*4+rax]
   lea     rax, [rax*2+rsi]
-  call    _modulo         ; Get value under rax modulo 0x10FF80.
+
   inc     rdi             ; Get the address of the next character.
   mov     r10, FD_READ    ; First digit is read.
+  cmp     rax, MODULO
+  jge     modulo          ; Get value under rax modulo 0x10FF80.
   jmp     convert
 
 number_read:
