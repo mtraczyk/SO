@@ -10,15 +10,17 @@ ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
 DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
-STDOUT	  equ 1
-SYS_WRITE equ 1
-NULL      equ 0           ; ASCII code for NULL.
+STDOUT	  equ 1           ; Code for stdout.
+STDIN     equ 0           ; Code for stdin.
+SYS_READ  equ 0           ; Code for SYS_READ.
+SYS_WRITE equ 1           ; Code for SYS_WRTIE.
 MODULO    equ 0x10FF80    ; Value of the modulo.
 NUM_OF_DI equ 11          ; Take modulo after reading NUM_OF_DI digits.
 
 section .bss
 
 str_num    resb 20         ; Used to store integers as strings.
+input      resb 10
 
 ; Macro used for printing integers.
 %macro printVa 1
@@ -151,19 +153,27 @@ get_polynomial_value:
 ; Therefore coefficients` traversal starting with an not a0.
 traverse_coefficients:
   add     r14, 0x08
-  imul    rax, rdi        ; Using Horner's Method. Multpily by x.
+  imul    rax, rdi        ; Using Horner's Method. Multiply by x.
   add     rax, [rsp+r14]  ; Using Horner's Method. Add next coefficient.
   call    _modulo
   dec     r13             ; Decrease number of coefficients to traverse.
   cmp     r13, 0          ; Check whether there are still some coefficients.
   jne     traverse_coefficients
-  jmp     exit
+  jmp     read_input
 
 ; Parses input from stdin.
 read_input:
+  mov     rax, SYS_READ
+  mov     rdi, STDIN
+  mov     rsi, input
+  mov     rdx, 1
+  syscall
+nic:
+  cmp     rax, 0
+  jl      error
+  je      exit
   mov     rax, 1
   jmp     get_polynomial_value
-  jmp     exit
 
 ; Exit with return code 0.
 error:
@@ -173,7 +183,6 @@ error:
 
 ; Exit with return code 0.
 exit:
-  printVa rax
   mov     eax, SYS_EXIT   ; Use SYS_EXIT.
   mov     edi, EXIT_SUC   ; Return code is zero.
   syscall
