@@ -18,7 +18,8 @@ NUM_OF_DI equ 11          ; Take modulo after reading NUM_OF_DI digits.
 
 section .bss
 
-strNum    resb 20         ; Used to store integers as strings.
+str_num    resb 20         ; Used to store integers as strings.
+num_of_co  resq 1          ; Used to store number of coefficients.
 
 ; Macro used for printing integers.
 %macro printVa 1
@@ -34,7 +35,7 @@ strNum    resb 20         ; Used to store integers as strings.
   cmp     rax, 0          ; if (result > 0)
   jne     %%divideLoop    ;   goto divideLoop
 
-  mov     rbx, strNum     ; Get address of string.
+  mov     rbx, str_num    ; Get address of string.
   mov     r10, START_IND  ; Current index is zero.
 
 %%popLoop:
@@ -73,21 +74,26 @@ section .text
 
 _start:
   mov     rbp, [rsp]      ; Number of polynomial's coefficients plus one.
+  mov     rbx, num_of_co
+  mov     [rbx], rbp
+  cmp     rbp, 1          ; There must be at least one coefficient.
+  je      error
   lea     rbp, [rbp*8]    ; Number of coefficients multiplied by 0x08.
   mov     r14, rbp
   jmp     read_coefficients
 
 ; Calculates value under rax register modulo 0x10FF80.
-modulo:
-  mov    rdx, 0x787c03a5c11c4499
-  mov    r15, rax
-  mul    rdx
-  mov    rax, r15
-  shr    rdx, 0x13
-  imul   rdx, rdx, MODULO
-  sub    rax, rdx
-  xor    r12, r12
-  jmp    convert
+_modulo:
+  mov     rdx, 0x787c03a5c11c4499
+  mov     r15, rax
+  mul     rdx
+  mov     rax, r15
+  shr     rdx, 0x13
+  imul    rdx, rdx, MODULO
+  sub     rax, rdx
+  xor     r12, r12
+nic:
+  ret
 
 ; Parses coefficients and stores their value modulo 0x10FF80 on the stack.
 read_coefficients:
@@ -105,7 +111,7 @@ atoi:
 convert:
   movzx   rsi, byte [rdi] ; Get the current character.
   test    rsi, rsi        ; Check for \0.
-  je      number_read
+  je      number_is_read
   cmp     rsi, ZERO_CHAR  ; Anything less than 0 is invalid.
   jl      error
   mov     r11, rsi        ; Copy of rsi register.
@@ -126,29 +132,39 @@ convert:
   mov     r10, FD_READ    ; First digit is read.
   inc     r12
   cmp     r12, NUM_OF_DI
-  je      modulo          ; Get value under rax modulo 0x10FF80.
+  jne     convert
+  call    _modulo         ; Get value under rax modulo 0x10FF80.
   jmp     convert
 
-number_read:
-  cmp     rax, MODULO
-  jge     modulo          ; Get value under rax modulo 0x10FF80.
+number_is_read:
+  call    _modulo         ; Get value under rax modulo 0x10FF80.
   add     r14, 0x08
   mov     [rsp+r14], rax
   jmp     read_coefficients
 
-; Parses input from stdin.
-read_input:
-  mov     r13, [rsp]
+get_polynomial_value:
+  mov     r13, [num_of_co]
+  lea     r14, [r13*8]
   dec     r13
+  mov     rdi, rax
+  xor     rax, rax
 
-display_coefficients:
-  mov     rax, [rsp+r14]
-  printVa rax
-  sub     r14, 0x08
+traverse_coefficients:
+  add     r14, 0x08
+  imul    rax, rdi
+  add     rax, [rsp+r14]
+  call    _modulo
   dec     r13
   cmp     r13, 0
-  je      exit
-  jmp     display_coefficients
+  jne     traverse_coefficients
+  jmp     exit
+
+; Parses input from stdin.
+read_input:
+  mov     rbp, rsp
+  mov     rax, 1
+  jmp     get_polynomial_value
+  jmp     exit
 
 ; Exit with return code 0.
 error:
@@ -158,6 +174,7 @@ error:
 
 ; Exit with return code 0.
 exit:
+  printVa rax
   mov     eax, SYS_EXIT
   mov     edi, EXIT_SUC   ; Return code is zero.
   syscall
