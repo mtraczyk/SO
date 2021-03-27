@@ -14,6 +14,7 @@ STDOUT	  equ 1
 SYS_WRITE equ 1
 NULL      equ 0           ; ASCII code for NULL.
 MODULO    equ 0x10FF80
+NUM_OF_DI equ 18          ; Take modulo after reading NUM_OF_DI digits.
 
 section .bss
 
@@ -78,13 +79,11 @@ _start:
 
 ; Calculates value under rax register modulo 0x10FF80.
 modulo:
-  mov    rdx, 0x787c03a5c11c4499
-  mov    r12, rax
-  mul    rdx
-  mov    rax, r12
-  shr    rdx, 0x13
-  imul   rdx, rdx, MODULO
-  sub    rax, rdx
+  xor    rdx, rdx
+  mov    rbx, MODULO
+  div    rbx
+  mov    rax, rdx
+  xor    r12, r12
   jmp    convert
 
 ; Parses coefficients and stores their value modulo 0x10FF80 on the stack.
@@ -98,6 +97,7 @@ read_coefficients:
 atoi:
   xor     rax, rax        ; Set initial total to 0.
   xor     r10, FD_N_READ  ; First digit has not been read.
+  xor     r12, r12
 
 convert:
   movzx   rsi, byte [rdi] ; Get the current character.
@@ -121,11 +121,14 @@ convert:
 
   inc     rdi             ; Get the address of the next character.
   mov     r10, FD_READ    ; First digit is read.
-  cmp     rax, MODULO
-  jge     modulo          ; Get value under rax modulo 0x10FF80.
+  inc     r12
+  cmp     r12, NUM_OF_DI
+  je      modulo          ; Get value under rax modulo 0x10FF80.
   jmp     convert
 
 number_read:
+  cmp     rax, MODULO
+  jge     modulo          ; Get value under rax modulo 0x10FF80.
   add     r14, 0x08
   mov     [rsp+r14], rax
   jmp     read_coefficients
