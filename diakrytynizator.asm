@@ -161,14 +161,17 @@ traverse_coefficients:
   jne     traverse_coefficients
   jmp     read_input
 
-; Parses input from stdin.
-read_input:
+_read_one_byte:
   mov     rax, SYS_READ
   mov     rdi, STDIN
   mov     rsi, input
   mov     rdx, 1
   syscall
-nic:
+  ret
+
+; Parses input from stdin.
+read_input:
+  call    _read_one_byte
   cmp     rax, 0
   jl      error
   je      exit
