@@ -16,6 +16,23 @@ SYS_READ  equ 0           ; Code for SYS_READ.
 SYS_WRITE equ 1           ; Code for SYS_WRTIE.
 MODULO    equ 0x10FF80    ; Value of the modulo.
 NUM_OF_DI equ 11          ; Take modulo after reading NUM_OF_DI digits.
+FB_OB_SC  equ 00000000b   ; First byte scheme for one byte UTF-8 is 0xxxxxxx.
+FB_TWB_SC equ 11000000b   ; First byte scheme for two bytes UTF-8 is 110xxxxx.
+FB_THB_SC equ 11100000b   ; First byte scheme for three bytes UTF-8 is 1110xxxx.
+FB_FOB_SC equ 11110000b   ; First byte scheme for four bytes UTF-8 is 11110xxx.
+
+FOB_MA_V  equ 01111111b
+FTWB_MA_V equ 00011111b
+FTHB_MA_V equ 00001111b
+FFOB_MA_V equ 00000111b
+
+; Used for projecting first bytes of UTF-8 characters with PEXT.
+FB_OB_PE  equ 10000000b
+FB_TWB_PE equ 11100000b
+FB_THB_PE equ 11110000b
+FB_FOB_PE equ 11111000b
+
+
 
 section .bss
 
@@ -175,8 +192,41 @@ read_input:
   cmp     rax, 0
   jl      error
   je      exit
-  mov     rax, 1
-  jmp     get_polynomial_value
+
+  mov     r9, FB_FOB_SC
+  xor     r9, [input]
+  cmp     r9, FFOB_MA_V
+  jle     four_bytes_utf_8_char
+
+  mov     r9, FB_THB_SC
+  xor     r9, [input]
+  cmp     r9, FTHB_MA_V
+  jle     three_bytes_utf_8_char
+
+  mov     r9, FB_TWB_SC
+  xor     r9, [input]
+  cmp     r9, FTWB_MA_V
+  jle     two_bytes_utf_8_char
+
+  mov     r9, FB_OB_SC
+  xor     r9, [input]
+  cmp     r9, FOB_MA_V
+  jle     one_byte_utf_8_char
+
+  jmp     error
+
+
+one_byte_utf_8_char:
+  jmp read_input
+
+two_bytes_utf_8_char:
+  jmp read_input
+
+three_bytes_utf_8_char:
+  jmp read_input
+
+four_bytes_utf_8_char:
+  jmp read_input
 
 ; Exit with return code 0.
 error:
