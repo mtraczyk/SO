@@ -13,13 +13,12 @@ START_IND equ 0           ; Starting index.
 STDOUT	  equ 1
 SYS_WRITE equ 1
 NULL      equ 0           ; ASCII code for NULL.
-MODULO    equ 0x10FF80
+MODULO    equ 0x10FF80    ; Value of the modulo.
 NUM_OF_DI equ 11          ; Take modulo after reading NUM_OF_DI digits.
 
 section .bss
 
 str_num    resb 20         ; Used to store integers as strings.
-num_of_co  resq 1          ; Used to store number of coefficients.
 
 ; Macro used for printing integers.
 %macro printVa 1
@@ -74,12 +73,10 @@ section .text
 
 _start:
   mov     rbp, [rsp]      ; Number of polynomial's coefficients plus one.
-  mov     rbx, num_of_co
-  mov     [rbx], rbp
   cmp     rbp, 1          ; There must be at least one coefficient.
   je      error
   lea     rbp, [rbp*8]    ; Number of coefficients multiplied by 0x08.
-  mov     r14, rbp
+  mov     r14, rbp        ; r14 used later for saving coefficients on the stack.
   jmp     read_coefficients
 
 ; Calculates value under rax register modulo 0x10FF80.
@@ -92,7 +89,6 @@ _modulo:
   imul    rdx, rdx, MODULO
   sub     rax, rdx
   xor     r12, r12
-nic:
   ret
 
 ; Parses coefficients and stores their value modulo 0x10FF80 on the stack.
@@ -125,56 +121,59 @@ convert:
   cmp     rsi, NINE_CHAR  ; Anything greater than 9 is invalid.
   jg      error
   sub     rsi, ZERO_CHAR  ; Convert from ASCII to decimal.
+
+  ; Multiplying rax by 10.
   lea     rax, [rax*4+rax]
   lea     rax, [rax*2+rsi]
 
   inc     rdi             ; Get the address of the next character.
   mov     r10, FD_READ    ; First digit is read.
   inc     r12
-  cmp     r12, NUM_OF_DI
+  cmp     r12, NUM_OF_DI  ; When r12 equals NUM_OF_DI then take modulo.
   jne     convert
   call    _modulo         ; Get value under rax modulo 0x10FF80.
   jmp     convert
 
 number_is_read:
   call    _modulo         ; Get value under rax modulo 0x10FF80.
-  add     r14, 0x08
-  mov     [rsp+r14], rax
+  add     r14, 0x08       ; Where to save next coefficient.
+  mov     [rsp+r14], rax  ; Save next coefficient.
   jmp     read_coefficients
 
 get_polynomial_value:
-  mov     r13, [num_of_co]
-  lea     r14, [r13*8]
-  dec     r13
-  mov     rdi, rax
+  mov     r13, [rsp]      ; Get number of coefficients+1.
+  lea     r14, [r13*8]    ; Multiply number of coefficients by 8.
+  dec     r13             ; Number of coefficients.
+  mov     rdi, rax        ; The answer will be in rax, save x to rdi.
   xor     rax, rax
 
+; Using Horner's Method to find polynomial's value at x.
+; Therefore coefficients` traversal starting with an not a0.
 traverse_coefficients:
   add     r14, 0x08
-  imul    rax, rdi
-  add     rax, [rsp+r14]
+  imul    rax, rdi        ; Using Horner's Method. Multpily by x.
+  add     rax, [rsp+r14]  ; Using Horner's Method. Add next coefficient.
   call    _modulo
-  dec     r13
-  cmp     r13, 0
+  dec     r13             ; Decrease number of coefficients to traverse.
+  cmp     r13, 0          ; Check whether there are still some coefficients.
   jne     traverse_coefficients
   jmp     exit
 
 ; Parses input from stdin.
 read_input:
-  mov     rbp, rsp
   mov     rax, 1
   jmp     get_polynomial_value
   jmp     exit
 
 ; Exit with return code 0.
 error:
-  mov     eax, SYS_EXIT
+  mov     eax, SYS_EXIT   ; Use SYS_EXIT.
   mov     edi, EXIT_FAI   ; Return 1 on error
   syscall
 
 ; Exit with return code 0.
 exit:
   printVa rax
-  mov     eax, SYS_EXIT
+  mov     eax, SYS_EXIT   ; Use SYS_EXIT.
   mov     edi, EXIT_SUC   ; Return code is zero.
   syscall
