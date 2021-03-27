@@ -14,7 +14,7 @@ STDOUT	  equ 1
 SYS_WRITE equ 1
 NULL      equ 0           ; ASCII code for NULL.
 MODULO    equ 0x10FF80
-NUM_OF_DI equ 18          ; Take modulo after reading NUM_OF_DI digits.
+NUM_OF_DI equ 11          ; Take modulo after reading NUM_OF_DI digits.
 
 section .bss
 
@@ -79,10 +79,13 @@ _start:
 
 ; Calculates value under rax register modulo 0x10FF80.
 modulo:
-  xor    rdx, rdx
-  mov    rbx, MODULO
-  div    rbx
-  mov    rax, rdx
+  mov    rdx, 0x787c03a5c11c4499
+  mov    r15, rax
+  mul    rdx
+  mov    rax, r15
+  shr    rdx, 0x13
+  imul   rdx, rdx, MODULO
+  sub    rax, rdx
   xor    r12, r12
   jmp    convert
 
