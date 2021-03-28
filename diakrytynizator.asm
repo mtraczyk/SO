@@ -26,11 +26,17 @@ FTWB_MA_V equ 00011111b
 FTHB_MA_V equ 00001111b
 FFOB_MA_V equ 00000111b
 
-; Used for projecting UTF-8 characters with PEXT
-; in order to get their corresponding value.
-FB_TWB_PE equ 0001111100111111b
-FB_THB_PE equ 000011110011111100111111b
-FB_FOB_PE equ 00000111001111110011111100111111b
+; Used for projecting UTF-8 characters with PEXT and PDEP.
+FB_TWB_P  equ 0001111100111111b
+FB_THB_P  equ 000011110011111100111111b
+FB_FOB_P  equ 00000111001111110011111100111111b
+
+; Scheme for two bytes UTF-8 is 110xxxxx.
+FB_TWB_SC equ 1100000010000000b
+; Scheme for three bytes UTF-8 is 1110xxxx.
+FB_THB_SC equ 111000001000000010000000b
+ ; Scheme for four bytes UTF-8 is 11110xxx.
+FB_FOB_SC equ 11110000100000001000000010000000b
 
 ; Maximum values for k-bytes UTF-8 characters.
 MAX_ONE_B equ 0x7F        ; Maximum value for one byte UTF-8 character
@@ -38,11 +44,18 @@ MAX_TWO_B equ 0x7FF       ; Maximum value for two bytes UTF-8 character
 MAX_THR_B equ 0xFFFF      ; Maximum value for three bytes UTF-8 character
 MAX_FOU_B equ 0x1FFFFF    ; Maximum value for four bytes UTF-8 character
 
+; Minimum values for k-bytes UTF-8 characters.
+MIN_TWO_B equ 0x80        ; Minimum value for two bytes UTF-8 character
+MIN_THR_B equ 0x800       ; Minimum value for three bytes UTF-8 character
+MIN_FOU_B equ 0x10000     ; Minimum value for four bytes UTF-8 character
+
 ; How many bytes.
 ONE_BYTE  equ 1
 TWO_BYTES equ 2
 THR_BYTES equ 3
 FOU_BYTES equ 4
+
+EIG_BITS  equ 8           ; Eight bits.
 
 section .bss
 
@@ -141,21 +154,17 @@ convert:
   cmp     rsi, ZERO_CHAR  ; Anything less than 0 is invalid.
   jl      error
   mov     r11, rsi        ; Copy of rsi register.
-
   ; r11 equals rsi if first digit is being read, otherwise zero.
   imul    r11, r10
   ; If r11 equals 48 then the first digit is zero.
   cmp     r11, ZERO_CHAR
   je      error           ; The first digit of a number can't be zero.
-
   cmp     rsi, NINE_CHAR  ; Anything greater than 9 is invalid.
   jg      error
   sub     rsi, ZERO_CHAR  ; Convert from ASCII to decimal.
-
   ; Multiplying rax by 10.
   lea     rax, [rax*4+rax]
   lea     rax, [rax*2+rsi]
-
   inc     rdi             ; Get the address of the next character.
   mov     r10, FD_READ    ; First digit is read.
   inc     r12
@@ -179,14 +188,14 @@ get_polynomial_value:
 
 ; Using Horner's Method to find polynomial's value at x.
 ; Therefore coefficients` traversal starting with an not a0.
-traverse_coefficients:
+.traverse_coefficients:
   add     r14, 0x08
   imul    rax, rdi        ; Using Horner's Method. Multiply by x.
   add     rax, [rsp+r14]  ; Using Horner's Method. Add next coefficient.
   call    _modulo
   dec     r13             ; Decrease number of coefficients to traverse.
   cmp     r13, 0          ; Check whether there are still some coefficients.
-  jne     traverse_coefficients
+  jne     .traverse_coefficients
   jmp     write_utf_8_char
 
 _read_one_byte:
@@ -195,6 +204,9 @@ _read_one_byte:
   mov     rsi, input
   mov     rdx, 1
   syscall
+  cmp     rax, 0
+  jl      error
+  je      exit
   ret
 
 write_bytes:
@@ -203,62 +215,83 @@ write_bytes:
   mov     rsi, output
   mov     rdx, r10
   syscall
-
   cmp     rax, 0
-nic:
   jl      error
   jmp     read_input
 
 ; Parses input from stdin.
 read_input:
   call    _read_one_byte
-  cmp     rax, 0
-  jl      error
-  je      exit
-
+  movzx   rax, byte [input]
   mov     r9, FB_FOB_SC
   xor     r9, [input]
   cmp     r9, FFOB_MA_V
   jle     read_four_bytes_utf_8_char
-
   mov     r9, FB_THB_SC
   xor     r9, [input]
   cmp     r9, FTHB_MA_V
   jle     read_three_bytes_utf_8_char
-
   mov     r9, FB_TWB_SC
   xor     r9, [input]
   cmp     r9, FTWB_MA_V
   jle     read_two_bytes_utf_8_char
-
   mov     r9, FB_OB_SC
   xor     r9, [input]
   cmp     r9, FOB_MA_V
   jle     read_one_byte_utf_8_char
-
   jmp     error
+
+_get_additional_byte:
+  shl     rax, EIG_BITS
+  call    _read_one_byte
+  add     rax, [input]
+
+polynomial_value:
+  mov     rax, rdx
+  sub     rax, 0x80
+  jmp     get_polynomial_value
 
 read_one_byte_utf_8_char:
   jmp     write_utf_8_char
 
 read_two_bytes_utf_8_char:
+  call    _get_additional_byte
+  mov     r11, FB_TWB_P
+  pext    rdx, rax, r11
+  cmp     rdx, MIN_TWO_B
+  jl      error
+  jmp     polynomial_value
+  jmp     polynomial_value
 
 read_three_bytes_utf_8_char:
+  call    _get_additional_byte
+  call    _get_additional_byte
+  mov     r11, FB_THB_P
+  pext    rdx, rax, r11
+  cmp     rdx, MIN_THR_B
+  jl      error
+  jmp     polynomial_value
 
 read_four_bytes_utf_8_char:
+  call    _get_additional_byte
+  call    _get_additional_byte
+  call    _get_additional_byte
+  mov     r11, FB_FOB_P
+  pext    rdx, rax, r11
+  cmp     rdx, MIN_FOU_B
+  jl      error
+  cmp     rdx, 0x10FF80
+  jg      error
+  jmp     polynomial_value
 
 write_utf_8_char:
   mov     r9, output
-
   cmp     rax, MAX_ONE_B
   jle     write_one_byte_utf_8_char
-
   cmp     rax, MAX_TWO_B
   jle     write_two_bytes_utf_8_char
-
   cmp     rax, MAX_THR_B
   jle     write_three_bytes_utf_8_char
-
   cmp     rax, MAX_FOU_B
   jle     write_four_bytes_utf_8_char
 
@@ -269,12 +302,18 @@ write_one_byte_utf_8_char:
   jmp     write_bytes
 
 write_two_bytes_utf_8_char:
+  pdep    rdx, rax, FB_TWB_P
+  add     rdx, FB_TWB_SC
   jmp     write_bytes
 
 write_three_bytes_utf_8_char:
+  pdep    rdx, rax, FB_THB_P
+  add     rdx, FB_THB_SC
   jmp     write_bytes
 
 write_four_bytes_utf_8_char:
+  pdep    rdx, rax, FB_THB_P
+  add     rdx, FB_THB_SC
   jmp     write_bytes
 
 ; Exit with return code 0.
