@@ -12,6 +12,7 @@ ZERO      equ 0
 DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
 STDOUT	  equ 1           ; Code for stdout.
+MI_N_OF_C equ 1           ; Minimum number of coefficients.
 STDIN     equ 0           ; Code for stdin.
 SYS_READ  equ 0           ; Code for SYS_READ.
 SYS_WRITE equ 1           ; Code for SYS_WRTIE.
@@ -83,7 +84,7 @@ section .text
 
 _start:
   mov     rbp, [rsp]      ; Number of polynomial's coefficients plus one.
-  cmp     rbp, 1          ; There must be at least one coefficient.
+  cmp     rbp, MI_N_OF_C  ; There must be at least one coefficient.
   je      error
   lea     rbp, [rbp*8]    ; Number of coefficients multiplied by 0x08.
   mov     r14, rbp        ; r14 used later for saving coefficients on the stack.
@@ -155,14 +156,14 @@ get_polynomial_value:
 
 ; Using Horner's Method to find polynomial's value at x.
 ; Therefore coefficients` traversal starting with an not a0.
-.traverse_coefficients:
+traverse_coefficients:
   add     r14, 0x08
   imul    rax, rdi        ; Using Horner's Method. Multiply by x.
   add     rax, [rsp+r14]  ; Using Horner's Method. Add next coefficient.
   call    _modulo
   dec     r13             ; Decrease number of coefficients to traverse.
   cmp     r13, ZERO       ; Check whether there are still some coefficients.
-  jne     .traverse_coefficients
+  jne     traverse_coefficients
   jmp     write_utf_8_char
 
 _read_one_byte:
@@ -200,8 +201,11 @@ read_input:
 
 _get_additional_byte:
   shl     rax, EIG_BITS
+  push    rax
   call    _read_one_byte
+  pop     rax
   add     rax, [input]
+  ret
 
 polynomial_value:
   mov     rax, rdx
@@ -217,7 +221,6 @@ read_two_bytes_utf_8_char:
   pext    rdx, rax, r11
   cmp     rdx, MIN_TWO_B
   jl      error
-  jmp     polynomial_value
   jmp     polynomial_value
 
 read_three_bytes_utf_8_char:
@@ -270,19 +273,19 @@ write_one_byte_utf_8_char:
 
 write_to_output:
   mov     r14, START_IND
-.write_to_output:
+  mov     r10, r13
+loop:
   dec     r13
   write_byte_to_output rax, r13, r14
   cmp     r13, ZERO
   je      write_bytes
-  jmp     .write_to_output
+  jmp     loop
 
 write_two_bytes_utf_8_char:
   mov     r11, FB_TWB_P
   pdep    rdx, rax, r11
   mov     r11, TWB_CH_SC
   add     rdx, r11
-  mov     r10, TWO_BYTES
   mov     r13, TWO_BYTES
   jmp     write_to_output
 
@@ -291,7 +294,6 @@ write_three_bytes_utf_8_char:
   pdep    rdx, rax, r11
   mov     r11, THB_CH_SC
   add     rdx, r11
-  mov     r10, THR_BYTES
   mov     r13, THR_BYTES
   jmp     write_to_output
 
@@ -300,7 +302,6 @@ write_four_bytes_utf_8_char:
   pdep    rdx, rax, r11
   mov     r11, FOB_CH_SC
   add     rdx, r11
-  mov     r10, FOU_BYTES
   mov     r13, FOU_BYTES
   jmp     write_to_output
 
