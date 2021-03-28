@@ -8,6 +8,7 @@ FD_READ   equ 0           ; First digit has been already read.
 FD_N_READ equ 1           ; First digit hasn't been already read.
 ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
+ZERO      equ 0
 DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
 STDOUT	  equ 1           ; Code for stdout.
@@ -64,59 +65,10 @@ str_num    resb 20         ; Used to store integers as strings.
 input      resb 10
 output     resb 10
 
-; Macro used for printing integers.
-%macro printVa 1
-  mov     rax, %1         ; Get the integer.
-  mov     rcx, 0          ; Digit count equals zero.
-
-%%divideLoop:
-  mov     edx, 0
-  mov     rbx, DEC_BASIS
-  div     rbx             ; Divide number by 10.
-  push    rdx             ; Push remainder.
-  inc     rcx             ; Increment digit count.
-  cmp     rax, 0          ; if (result > 0)
-  jne     %%divideLoop    ;   goto divideLoop
-
-  mov     rbx, str_num    ; Get address of string.
-  mov     r10, START_IND  ; Current index is zero.
-
-%%popLoop:
-  pop     rax             ; Pop digit.
-  add     al, ZERO_CHAR   ; Digit into ASCII.
-
-  ; Storing digit in strNum.
-  mov     byte [rbx+r10], al
-  inc     r10             ; Increment index.
-  dec     rcx             ; Decrease number of digits left to change into ASCII.
-  cmp     rcx, 0          ; Check whether there are still digits to process.
-  jne     %%popLoop
-
-  xor     r12, r12
-
-%%writeToStdout:
-  mov     rax, SYS_WRITE
-  mov     rdi, STDOUT
-  lea     r11, [rbx+r12]
-  mov     rsi, r11
-  mov     rdx, 1          ; Write one byte to stdout.
-  syscall
-
-  cmp     rax, EXIT_SUC
-  jl      error
-
-  inc     r12
-  cmp     r12, r10        ; Check whether there are still some digits.
-  jne     %%writeToStdout
-
-%endmacro
-
 %macro write_byte_to_output 3
   mov     r13, %1         ; Get the integer.
   mov     rcx, %2         ; Which byte, Little Endian.
   mov     r15, %3         ; Place in memory.
-  dec     r14
-  dec     r15
   mov     rbp, EL_BIT_MA
   lea     rcx, [rcx*8]
   shl     rbp, cl
@@ -209,7 +161,7 @@ get_polynomial_value:
   add     rax, [rsp+r14]  ; Using Horner's Method. Add next coefficient.
   call    _modulo
   dec     r13             ; Decrease number of coefficients to traverse.
-  cmp     r13, EXIT_SUC   ; Check whether there are still some coefficients.
+  cmp     r13, ZERO       ; Check whether there are still some coefficients.
   jne     .traverse_coefficients
   jmp     write_utf_8_char
 
@@ -219,7 +171,7 @@ _read_one_byte:
   mov     rsi, input
   mov     rdx, 1
   syscall
-  cmp     rax, EXIT_SUC
+  cmp     rax, ZERO
   jl      error
   je      exit
   ret
@@ -295,7 +247,7 @@ write_bytes:
   mov     rsi, r9
   mov     rdx, r10
   syscall
-  cmp     rax, EXIT_SUC
+  cmp     rax, ZERO
   jl      error
   jmp     read_input
 
@@ -317,7 +269,13 @@ write_one_byte_utf_8_char:
   jmp     write_bytes
 
 write_to_output:
-  jmp     write_bytes
+  mov     r14, START_IND
+.write_to_output:
+  dec     r13
+  write_byte_to_output rax, r13, r14
+  cmp     r13, ZERO
+  je      write_bytes
+  jmp     .write_to_output
 
 write_two_bytes_utf_8_char:
   mov     r11, FB_TWB_P
