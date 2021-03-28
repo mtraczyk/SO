@@ -26,18 +26,29 @@ FTWB_MA_V equ 00011111b
 FTHB_MA_V equ 00001111b
 FFOB_MA_V equ 00000111b
 
-; Used for projecting first bytes of UTF-8 characters with PEXT.
-FB_OB_PE  equ 10000000b
-FB_TWB_PE equ 11100000b
-FB_THB_PE equ 11110000b
-FB_FOB_PE equ 11111000b
+; Used for projecting UTF-8 characters with PEXT
+; in order to get their corresponding value.
+FB_TWB_PE equ 0001111100111111b
+FB_THB_PE equ 000011110011111100111111b
+FB_FOB_PE equ 00000111001111110011111100111111b
 
+; Maximum values for k-bytes UTF-8 characters.
+MAX_ONE_B equ 0x7F        ; Maximum value for one byte UTF-8 character
+MAX_TWO_B equ 0x7FF       ; Maximum value for two bytes UTF-8 character
+MAX_THR_B equ 0xFFFF      ; Maximum value for three bytes UTF-8 character
+MAX_FOU_B equ 0x1FFFFF    ; Maximum value for four bytes UTF-8 character
 
+; How many bytes.
+ONE_BYTE  equ 1
+TWO_BYTES equ 2
+THR_BYTES equ 3
+FOU_BYTES equ 4
 
 section .bss
 
 str_num    resb 20         ; Used to store integers as strings.
 input      resb 10
+output     resb 10
 
 ; Macro used for printing integers.
 %macro printVa 1
@@ -176,7 +187,7 @@ traverse_coefficients:
   dec     r13             ; Decrease number of coefficients to traverse.
   cmp     r13, 0          ; Check whether there are still some coefficients.
   jne     traverse_coefficients
-  jmp     read_input
+  jmp     write_utf_8_char
 
 _read_one_byte:
   mov     rax, SYS_READ
@@ -185,6 +196,18 @@ _read_one_byte:
   mov     rdx, 1
   syscall
   ret
+
+write_bytes:
+  mov     rax, SYS_WRITE
+  mov     rdi, STDOUT
+  mov     rsi, output
+  mov     rdx, r10
+  syscall
+
+  cmp     rax, 0
+nic:
+  jl      error
+  jmp     read_input
 
 ; Parses input from stdin.
 read_input:
@@ -196,37 +219,63 @@ read_input:
   mov     r9, FB_FOB_SC
   xor     r9, [input]
   cmp     r9, FFOB_MA_V
-  jle     four_bytes_utf_8_char
+  jle     read_four_bytes_utf_8_char
 
   mov     r9, FB_THB_SC
   xor     r9, [input]
   cmp     r9, FTHB_MA_V
-  jle     three_bytes_utf_8_char
+  jle     read_three_bytes_utf_8_char
 
   mov     r9, FB_TWB_SC
   xor     r9, [input]
   cmp     r9, FTWB_MA_V
-  jle     two_bytes_utf_8_char
+  jle     read_two_bytes_utf_8_char
 
   mov     r9, FB_OB_SC
   xor     r9, [input]
   cmp     r9, FOB_MA_V
-  jle     one_byte_utf_8_char
+  jle     read_one_byte_utf_8_char
 
   jmp     error
 
+read_one_byte_utf_8_char:
+  jmp     write_utf_8_char
 
-one_byte_utf_8_char:
-  jmp read_input
+read_two_bytes_utf_8_char:
 
-two_bytes_utf_8_char:
-  jmp read_input
+read_three_bytes_utf_8_char:
 
-three_bytes_utf_8_char:
-  jmp read_input
+read_four_bytes_utf_8_char:
 
-four_bytes_utf_8_char:
-  jmp read_input
+write_utf_8_char:
+  mov     r9, output
+
+  cmp     rax, MAX_ONE_B
+  jle     write_one_byte_utf_8_char
+
+  cmp     rax, MAX_TWO_B
+  jle     write_two_bytes_utf_8_char
+
+  cmp     rax, MAX_THR_B
+  jle     write_three_bytes_utf_8_char
+
+  cmp     rax, MAX_FOU_B
+  jle     write_four_bytes_utf_8_char
+
+write_one_byte_utf_8_char:
+  mov     rax, [input]
+  mov     [r9], rax
+  mov     r10, ONE_BYTE
+  jmp     write_bytes
+
+write_two_bytes_utf_8_char:
+  jmp     write_bytes
+
+write_three_bytes_utf_8_char:
+  jmp     write_bytes
+
+write_four_bytes_utf_8_char:
+  jmp     write_bytes
 
 ; Exit with return code 0.
 error:
