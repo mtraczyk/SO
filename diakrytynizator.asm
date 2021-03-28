@@ -56,6 +56,7 @@ THR_BYTES equ 3
 FOU_BYTES equ 4
 
 EIG_BITS  equ 8           ; Eight bits.
+EL_BIT_MA equ 11111111b
 
 section .bss
 
@@ -101,13 +102,27 @@ output     resb 10
   mov     rdx, 1          ; Write one byte to stdout.
   syscall
 
-  cmp     rax, 0
+  cmp     rax, EXIT_SUC
   jl      error
 
   inc     r12
   cmp     r12, r10        ; Check whether there are still some digits.
   jne     %%writeToStdout
 
+%endmacro
+
+%macro write_byte_to_output 3
+  mov     r13, %1         ; Get the integer.
+  mov     rcx, %2         ; Which byte, Little Endian.
+  mov     r15, %3         ; Place in memory.
+  dec     r14
+  dec     r15
+  mov     rbp, EL_BIT_MA
+  lea     rcx, [rcx*8]
+  shl     rbp, cl
+  and     r13, rbp
+  mov     rcx, output
+  mov     [rcx+r15], r13
 %endmacro
 
 global _start
@@ -194,7 +209,7 @@ get_polynomial_value:
   add     rax, [rsp+r14]  ; Using Horner's Method. Add next coefficient.
   call    _modulo
   dec     r13             ; Decrease number of coefficients to traverse.
-  cmp     r13, 0          ; Check whether there are still some coefficients.
+  cmp     r13, EXIT_SUC   ; Check whether there are still some coefficients.
   jne     .traverse_coefficients
   jmp     write_utf_8_char
 
@@ -204,20 +219,10 @@ _read_one_byte:
   mov     rsi, input
   mov     rdx, 1
   syscall
-  cmp     rax, 0
+  cmp     rax, EXIT_SUC
   jl      error
   je      exit
   ret
-
-write_bytes:
-  mov     rax, SYS_WRITE
-  mov     rdi, STDOUT
-  mov     rsi, r9
-  mov     rdx, r10
-  syscall
-  cmp     rax, 0
-  jl      error
-  jmp     read_input
 
 ; Parses input from stdin.
 read_input:
@@ -284,6 +289,16 @@ read_four_bytes_utf_8_char:
   jg      error
   jmp     polynomial_value
 
+write_bytes:
+  mov     rax, SYS_WRITE
+  mov     rdi, STDOUT
+  mov     rsi, r9
+  mov     rdx, r10
+  syscall
+  cmp     rax, EXIT_SUC
+  jl      error
+  jmp     read_input
+
 write_utf_8_char:
   mov     r9, output
   cmp     rax, MAX_ONE_B
@@ -301,32 +316,35 @@ write_one_byte_utf_8_char:
   mov     r10, ONE_BYTE
   jmp     write_bytes
 
+write_to_output:
+  jmp     write_bytes
+
 write_two_bytes_utf_8_char:
   mov     r11, FB_TWB_P
   pdep    rdx, rax, r11
   mov     r11, TWB_CH_SC
   add     rdx, r11
-  ; Zapisz bajty w output
   mov     r10, TWO_BYTES
-  jmp     write_bytes
+  mov     r13, TWO_BYTES
+  jmp     write_to_output
 
 write_three_bytes_utf_8_char:
   mov     r11, FB_THB_P
   pdep    rdx, rax, r11
   mov     r11, THB_CH_SC
   add     rdx, r11
-  ; Zapisz bajty w output
   mov     r10, THR_BYTES
-  jmp     write_bytes
+  mov     r13, THR_BYTES
+  jmp     write_to_output
 
 write_four_bytes_utf_8_char:
   mov     r11, FB_FOB_P
   pdep    rdx, rax, r11
   mov     r11, FOB_CH_SC
   add     rdx, r11
-  ; Zapisz bajty w output
   mov     r10, FOU_BYTES
-  jmp     write_bytes
+  mov     r13, FOU_BYTES
+  jmp     write_to_output
 
 ; Exit with return code 0.
 error:
