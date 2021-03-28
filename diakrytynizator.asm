@@ -31,12 +31,12 @@ FB_TWB_P  equ 0001111100111111b
 FB_THB_P  equ 000011110011111100111111b
 FB_FOB_P  equ 00000111001111110011111100111111b
 
-; Scheme for two bytes UTF-8 is 110xxxxx.
-FB_TWB_SC equ 1100000010000000b
-; Scheme for three bytes UTF-8 is 1110xxxx.
-FB_THB_SC equ 111000001000000010000000b
- ; Scheme for four bytes UTF-8 is 11110xxx.
-FB_FOB_SC equ 11110000100000001000000010000000b
+; Scheme for two bytes UTF-8 is 110xxxxx10xxxxxx.
+TWB_CH_SC equ 1100000010000000b
+; Scheme for three bytes UTF-8 is 1110xxxx10xxxxxx10xxxxxx.
+THB_CH_SC equ 111000001000000010000000b
+ ; Scheme for four bytes UTF-8 is 11110xxx10xxxxxx10xxxxxx10xxxxxx.
+FOB_CH_SC equ 11110000100000001000000010000000b
 
 ; Maximum values for k-bytes UTF-8 characters.
 MAX_ONE_B equ 0x7F        ; Maximum value for one byte UTF-8 character
@@ -212,7 +212,7 @@ _read_one_byte:
 write_bytes:
   mov     rax, SYS_WRITE
   mov     rdi, STDOUT
-  mov     rsi, output
+  mov     rsi, r9
   mov     rdx, r10
   syscall
   cmp     rax, 0
@@ -302,18 +302,30 @@ write_one_byte_utf_8_char:
   jmp     write_bytes
 
 write_two_bytes_utf_8_char:
-  pdep    rdx, rax, FB_TWB_P
-  add     rdx, FB_TWB_SC
+  mov     r11, FB_TWB_P
+  pdep    rdx, rax, r11
+  mov     r11, TWB_CH_SC
+  add     rdx, r11
+  ; Zapisz bajty w output
+  mov     r10, TWO_BYTES
   jmp     write_bytes
 
 write_three_bytes_utf_8_char:
-  pdep    rdx, rax, FB_THB_P
-  add     rdx, FB_THB_SC
+  mov     r11, FB_THB_P
+  pdep    rdx, rax, r11
+  mov     r11, THB_CH_SC
+  add     rdx, r11
+  ; Zapisz bajty w output
+  mov     r10, THR_BYTES
   jmp     write_bytes
 
 write_four_bytes_utf_8_char:
-  pdep    rdx, rax, FB_THB_P
-  add     rdx, FB_THB_SC
+  mov     r11, FB_FOB_P
+  pdep    rdx, rax, r11
+  mov     r11, FOB_CH_SC
+  add     rdx, r11
+  ; Zapisz bajty w output
+  mov     r10, FOU_BYTES
   jmp     write_bytes
 
 ; Exit with return code 0.
