@@ -242,17 +242,15 @@ write_bytes:
   mov     rdx, r10
   syscall
   cmp     rax, ZERO
-nic6:
   jl      error
   jmp     read_input
 
 write_utf_8_char:
-  add     rax, 0x80
   call    _modulo
-nic5:
   mov     r9, output
   cmp     rax, MAX_ONE_B
   jle     write_one_byte_utf_8_char
+  add     rax, 0x80
   cmp     rax, MAX_TWO_B
   jle     write_two_bytes_utf_8_char
   cmp     rax, MAX_THR_B
@@ -264,6 +262,7 @@ write_one_byte_utf_8_char:
   mov     rax, [input]
   mov     [r9], rax
   mov     r10, ONE_BYTE
+nic:
   jmp     write_bytes
 
 write_to_output:
