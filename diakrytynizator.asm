@@ -4,8 +4,6 @@ section .data
 SYS_EXIT  equ 60          ; Call code for terminate.
 EXIT_SUC  equ 0           ; Return code on an successful exit.
 EXIT_FAI  equ 1           ; Return code on an unsuccessful exit.
-FD_READ   equ 0           ; First digit has been already read.
-FD_N_READ equ 1           ; First digit hasn't been already read.
 ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
 ZERO      equ 0
@@ -57,7 +55,7 @@ TWO_BYTES equ 2
 THR_BYTES equ 3
 FOU_BYTES equ 4
 
-EIG_BITS  equ 8           ; Eight bits.
+EIG_BITS  equ 8            ; Eight bits.
 EL_BIT_MA equ 11111111b
 
 section .bss
@@ -67,15 +65,15 @@ input      resb 10
 output     resb 10
 
 %macro write_byte_to_output 3
-  mov     r13, %1         ; Get the integer.
+  mov     r11, %1         ; Get the integer.
   mov     rcx, %2         ; Which byte, Little Endian.
-  mov     r15, %3         ; Place in memory.
-  mov     rbp, EL_BIT_MA
+  mov     r15, %3
+  mov     rdi, EL_BIT_MA
   lea     rcx, [rcx*8]
-  shl     rbp, cl
-  and     r13, rbp
+  shr     r11, cl
+  and     r11, rdi
   mov     rcx, output
-  mov     [rcx+r15], r13
+  mov     [rcx+r15], r11
 %endmacro
 
 global _start
@@ -112,7 +110,6 @@ read_coefficients:
 
 atoi:
   xor     rax, rax        ; Set initial total to 0.
-  xor     r10, FD_N_READ  ; First digit has not been read.
   xor     r12, r12
 
 convert:
@@ -122,11 +119,6 @@ convert:
   cmp     rsi, ZERO_CHAR  ; Anything less than 0 is invalid.
   jl      error
   mov     r11, rsi        ; Copy of rsi register.
-  ; r11 equals rsi if first digit is being read, otherwise zero.
-  imul    r11, r10
-  ; If r11 equals 48 then the first digit is zero.
-  cmp     r11, ZERO_CHAR
-  je      error           ; The first digit of a number can't be zero.
   cmp     rsi, NINE_CHAR  ; Anything greater than 9 is invalid.
   jg      error
   sub     rsi, ZERO_CHAR  ; Convert from ASCII to decimal.
@@ -134,7 +126,6 @@ convert:
   lea     rax, [rax*4+rax]
   lea     rax, [rax*2+rsi]
   inc     rdi             ; Get the address of the next character.
-  mov     r10, FD_READ    ; First digit is read.
   inc     r12
   cmp     r12, NUM_OF_DI  ; When r12 equals NUM_OF_DI then take modulo.
   jne     convert
@@ -251,10 +242,14 @@ write_bytes:
   mov     rdx, r10
   syscall
   cmp     rax, ZERO
+nic6:
   jl      error
   jmp     read_input
 
 write_utf_8_char:
+  add     rax, 0x80
+  call    _modulo
+nic5:
   mov     r9, output
   cmp     rax, MAX_ONE_B
   jle     write_one_byte_utf_8_char
@@ -276,7 +271,8 @@ write_to_output:
   mov     r10, r13
 loop:
   dec     r13
-  write_byte_to_output rax, r13, r14
+  write_byte_to_output rdx, r13, r14
+  inc     r14
   cmp     r13, ZERO
   je      write_bytes
   jmp     loop
