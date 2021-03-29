@@ -155,6 +155,8 @@ traverse_coefficients:
   dec     r13             ; Decrease number of coefficients to traverse.
   cmp     r13, ZERO       ; Check whether there are still some coefficients.
   jne     traverse_coefficients
+  add     rax, 0x80
+  call    _modulo
   jmp     write_utf_8_char
 
 _read_one_byte:
@@ -246,11 +248,9 @@ write_bytes:
   jmp     read_input
 
 write_utf_8_char:
-  call    _modulo
   mov     r9, output
   cmp     rax, MAX_ONE_B
   jle     write_one_byte_utf_8_char
-  add     rax, 0x80
   cmp     rax, MAX_TWO_B
   jle     write_two_bytes_utf_8_char
   cmp     rax, MAX_THR_B
@@ -262,7 +262,6 @@ write_one_byte_utf_8_char:
   mov     rax, [input]
   mov     [r9], rax
   mov     r10, ONE_BYTE
-nic:
   jmp     write_bytes
 
 write_to_output:
