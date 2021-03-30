@@ -86,21 +86,15 @@ output_ind resq 1
   mov     [output_ind], r15
   mov     [output_siz], r11
   cmp     r11, CHUNK_SIZ
-  jne     do_not_write_to_stdout
+  jl      do_not_write_bytes
 
-write_to_stdout:
-  mov     rax, SYS_WRITE
-  mov     rdi, STDOUT
-  mov     rsi, output
-  mov     rdx, [output_siz]
-  syscall
-  mov     r15, ZERO
-  mov     [output_ind], r15
-  mov     [output_siz], r15
-  cmp     rax, ZERO
-  jl      error
+write_bytes:
+  mov     rcx, %2
+  cmp     rcx, ZERO
+  jne     do_not_write_bytes
+  call    _write_to_stdout
 
-do_not_write_to_stdout:
+do_not_write_bytes:
 
 %endmacro
 
@@ -285,7 +279,6 @@ read_four_bytes_utf_8_char:
   jmp     polynomial_value
 
 write_utf_8_char:
-  mov     r9, output
   cmp     rax, MAX_ONE_B
   jle     write_one_byte_utf_8_char
   cmp     rax, MAX_TWO_B
@@ -333,24 +326,29 @@ write_four_bytes_utf_8_char:
   mov     r13, FOU_BYTES
   jmp     write_to_output
 
-_write_before_termination:
+_write_to_stdout:
   mov     rax, SYS_WRITE
   mov     rdi, STDOUT
   mov     rsi, output
   mov     rdx, [output_siz]
   syscall
+  mov     r15, ZERO
+  mov     [output_ind], r15
+  mov     [output_siz], r15
+  cmp     rax, ZERO
+  jl      error
   ret
 
 ; Exit with return code 0.
 error:
-  call    _write_before_termination
+  call    _write_to_stdout
   mov     eax, SYS_EXIT   ; Use SYS_EXIT.
   mov     edi, EXIT_FAI   ; Return 1 on error
   syscall
 
 ; Exit with return code 0.
 exit:
-  call    _write_before_termination
+  call    _write_to_stdout
   mov     eax, SYS_EXIT   ; Use SYS_EXIT.
   mov     edi, EXIT_SUC   ; Return code is zero.
   syscall
