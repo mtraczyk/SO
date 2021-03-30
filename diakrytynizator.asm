@@ -7,6 +7,7 @@ EXIT_FAI  equ 1           ; Return code on an unsuccessful exit.
 ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
 ZERO      equ 0
+CHUNK_SIZ equ 1000
 DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
 STDOUT	  equ 1           ; Code for stdout.
@@ -64,7 +65,9 @@ EL_BIT_MA equ 11111111b
 section .bss
 
 str_num    resb 20         ; Used to store integers as strings.
-input      resb 10
+bufor      resb 2000
+bufor_size resq 1
+buf_index  resq 1
 output     resb 10
 
 %macro write_byte_to_output 3
@@ -157,39 +160,53 @@ traverse_coefficients:
   dec     r13             ; Decrease number of coefficients to traverse.
   cmp     r13, ZERO       ; Check whether there are still some coefficients.
   jne     traverse_coefficients
-  add     rax, 0x80
   call    _modulo
+  add     rax, 0x80
   jmp     write_utf_8_char
 
-_read_one_byte:
+read_to_bufor:
   mov     rax, SYS_READ
   mov     rdi, STDIN
-  mov     rsi, input
-  mov     rdx, 1
+  mov     rsi, bufor
+  mov     rdx, CHUNK_SIZ
   syscall
   cmp     rax, ZERO
   jl      error
   je      exit
+  mov     [bufor_size], rax
+  mov     r11, ZERO
+  mov     [buf_index], r11
+
+_read_one_byte:
+  mov     r11, ZERO
+  cmp     [bufor_size], r11
+  je      read_to_bufor
+  mov     r11, [buf_index]
+  movzx   rax, byte [bufor+r11]
+  inc     r11
+  mov     [buf_index], r11
+  mov     r12, [bufor_size]
+  dec     r12
+  mov     [bufor_size], r12
   ret
 
 ; Parses input from stdin.
 read_input:
   call    _read_one_byte
-  movzx   rax, byte [input]
   mov     r9, FB_FOB_SC
-  xor     r9, [input]
+  xor     r9, rax
   cmp     r9, FFOB_MA_V
   jle     read_four_bytes_utf_8_char
   mov     r9, FB_THB_SC
-  xor     r9, [input]
+  xor     r9, rax
   cmp     r9, FTHB_MA_V
   jle     read_three_bytes_utf_8_char
   mov     r9, FB_TWB_SC
-  xor     r9, [input]
+  xor     r9, rax
   cmp     r9, FTWB_MA_V
   jle     read_two_bytes_utf_8_char
   mov     r9, FB_OB_SC
-  xor     r9, [input]
+  xor     r9, rax
   cmp     r9, FOB_MA_V
   jle     read_one_byte_utf_8_char
   jmp     error
@@ -198,13 +215,14 @@ _get_additional_byte:
   shl     rax, EIG_BITS
   push    rax
   call    _read_one_byte
-  mov     rdi, [input]
+  mov     rdi, rax
   xor     rdi, ADDB_SCHE
   and     rdi, AUX_BYTE
   cmp     rdi, ZERO
   jne     error
+  mov     rdi, rax
   pop     rax
-  add     rax, [input]
+  add     rax, rdi
   ret
 
 polynomial_value:
