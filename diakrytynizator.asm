@@ -55,6 +55,9 @@ TWO_BYTES equ 2
 THR_BYTES equ 3
 FOU_BYTES equ 4
 
+ADDB_SCHE equ 10000000b
+AUX_BYTE  equ 11000000b
+
 EIG_BITS  equ 8            ; Eight bits.
 EL_BIT_MA equ 11111111b
 
@@ -106,7 +109,6 @@ read_coefficients:
   je      read_input      ; No coefficients to parse - starts reading stdin.
   mov     rdi, [rsp+rbp]  ; Stores next coefficient to parse in rdi register.
   sub     rbp, 0x08       ; Where to look for next coefficient on the stack.
-  jmp     atoi            ; Convert coefficient to an integer.
 
 atoi:
   xor     rax, rax        ; Set initial total to 0.
@@ -196,6 +198,11 @@ _get_additional_byte:
   shl     rax, EIG_BITS
   push    rax
   call    _read_one_byte
+  mov     rdi, [input]
+  xor     rdi, ADDB_SCHE
+  and     rdi, AUX_BYTE
+  cmp     rdi, ZERO
+  jne     error
   pop     rax
   add     rax, [input]
   ret
@@ -233,7 +240,7 @@ read_four_bytes_utf_8_char:
   pext    rdx, rax, r11
   cmp     rdx, MIN_FOU_B
   jl      error
-  cmp     rdx, 0x10FF80
+  cmp     rdx, 0x10FFFF
   jg      error
   jmp     polynomial_value
 
@@ -259,7 +266,6 @@ write_utf_8_char:
   jle     write_four_bytes_utf_8_char
 
 write_one_byte_utf_8_char:
-  mov     rax, [input]
   mov     [r9], rax
   mov     r10, ONE_BYTE
   jmp     write_bytes
