@@ -7,7 +7,7 @@ EXIT_FAI  equ 1           ; Return code on an unsuccessful exit.
 ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
 ZERO      equ 0
-CHUNK_SIZ equ 2
+CHUNK_SIZ equ 1000
 DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
 STDOUT	  equ 1           ; Code for stdout.
