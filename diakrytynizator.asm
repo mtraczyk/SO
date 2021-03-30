@@ -7,7 +7,7 @@ EXIT_FAI  equ 1           ; Return code on an unsuccessful exit.
 ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
 ZERO      equ 0
-CHUNK_SIZ equ 1000
+CHUNK_SIZ equ 2
 DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
 STDOUT	  equ 1           ; Code for stdout.
@@ -64,22 +64,44 @@ EL_BIT_MA equ 11111111b
 
 section .bss
 
-str_num    resb 20         ; Used to store integers as strings.
-bufor      resb 2000
-bufor_size resq 1
-buf_index  resq 1
-output     resb 10
+input      resb 2000
+input_size resq 1
+input_ind  resq 1
+output     resb 2000
+output_siz resq 1
+output_ind resq 1
 
-%macro write_byte_to_output 3
+%macro write_byte_to_output 2
   mov     r11, %1         ; Get the integer.
-  mov     rcx, %2         ; Which byte, Little Endian.
-  mov     r15, %3
+  mov     rcx, %2         ; Which byte.
   mov     rdi, EL_BIT_MA
   lea     rcx, [rcx*8]
   shr     r11, cl
   and     r11, rdi
-  mov     rcx, output
-  mov     [rcx+r15], r11
+  mov     r15, [output_ind]
+  mov     [output+r15], r11
+  mov     r11, [output_siz]
+  inc     r11
+  inc     r15
+  mov     [output_ind], r15
+  mov     [output_siz], r11
+  cmp     r11, CHUNK_SIZ
+  jne     do_not_write_to_stdout
+
+write_to_stdout:
+  mov     rax, SYS_WRITE
+  mov     rdi, STDOUT
+  mov     rsi, output
+  mov     rdx, [output_siz]
+  syscall
+  mov     r15, ZERO
+  mov     [output_ind], r15
+  mov     [output_siz], r15
+  cmp     rax, ZERO
+  jl      error
+
+do_not_write_to_stdout:
+
 %endmacro
 
 global _start
@@ -167,27 +189,27 @@ traverse_coefficients:
 read_to_bufor:
   mov     rax, SYS_READ
   mov     rdi, STDIN
-  mov     rsi, bufor
+  mov     rsi, input
   mov     rdx, CHUNK_SIZ
   syscall
   cmp     rax, ZERO
   jl      error
   je      exit
-  mov     [bufor_size], rax
+  mov     [input_size], rax
   mov     r11, ZERO
-  mov     [buf_index], r11
+  mov     [input_ind], r11
 
 _read_one_byte:
   mov     r11, ZERO
-  cmp     [bufor_size], r11
+  cmp     [input_size], r11
   je      read_to_bufor
-  mov     r11, [buf_index]
-  movzx   rax, byte [bufor+r11]
+  mov     r11, [input_ind]
+  movzx   rax, byte [input+r11]
   inc     r11
-  mov     [buf_index], r11
-  mov     r12, [bufor_size]
+  mov     [input_ind], r11
+  mov     r12, [input_size]
   dec     r12
-  mov     [bufor_size], r12
+  mov     [input_size], r12
   ret
 
 ; Parses input from stdin.
@@ -262,16 +284,6 @@ read_four_bytes_utf_8_char:
   jg      error
   jmp     polynomial_value
 
-write_bytes:
-  mov     rax, SYS_WRITE
-  mov     rdi, STDOUT
-  mov     rsi, r9
-  mov     rdx, r10
-  syscall
-  cmp     rax, ZERO
-  jl      error
-  jmp     read_input
-
 write_utf_8_char:
   mov     r9, output
   cmp     rax, MAX_ONE_B
@@ -283,21 +295,19 @@ write_utf_8_char:
   cmp     rax, MAX_FOU_B
   jle     write_four_bytes_utf_8_char
 
-write_one_byte_utf_8_char:
-  mov     [r9], rax
-  mov     r10, ONE_BYTE
-  jmp     write_bytes
-
 write_to_output:
-  mov     r14, START_IND
   mov     r10, r13
 loop:
   dec     r13
-  write_byte_to_output rdx, r13, r14
-  inc     r14
+  write_byte_to_output rdx, r13
   cmp     r13, ZERO
-  je      write_bytes
+  je      read_input
   jmp     loop
+
+write_one_byte_utf_8_char:
+  mov     rdx, rax
+  mov     r13, ONE_BYTE
+  jmp     write_to_output
 
 write_two_bytes_utf_8_char:
   mov     r11, FB_TWB_P
@@ -323,14 +333,24 @@ write_four_bytes_utf_8_char:
   mov     r13, FOU_BYTES
   jmp     write_to_output
 
+_write_before_termination:
+  mov     rax, SYS_WRITE
+  mov     rdi, STDOUT
+  mov     rsi, output
+  mov     rdx, [output_siz]
+  syscall
+  ret
+
 ; Exit with return code 0.
 error:
+  call    _write_before_termination
   mov     eax, SYS_EXIT   ; Use SYS_EXIT.
   mov     edi, EXIT_FAI   ; Return 1 on error
   syscall
 
 ; Exit with return code 0.
 exit:
+  call    _write_before_termination
   mov     eax, SYS_EXIT   ; Use SYS_EXIT.
   mov     edi, EXIT_SUC   ; Return code is zero.
   syscall
