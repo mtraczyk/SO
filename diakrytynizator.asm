@@ -67,6 +67,9 @@ AUXILIARY_BYTE         equ 11000000b
 
 NUMBER_OF_BITS         equ 8 ; Eight bits.
 LIT_BYTE               equ 11111111b ; Eight lit bits.
+POINTER_SIZE           equ 0x08 ; Pointer size in bytes.
+
+DIA_CONSTANT          equ 0x80 ; Diacritization constant.
 
 section .bss
 
@@ -113,14 +116,17 @@ global _start
 section .text
 
 _start:
-  mov     rbp, [rsp]      ; Number of polynomial's coefficients plus one.
-  cmp     rbp, MI_N_OF_C  ; There must be at least one coefficient.
+  mov     rbp, [rsp] ; Number of polynomial's coefficients plus one.
+  cmp     rbp, MIN_NUM_OF_COEFF ; There must be at least one coefficient.
   je      error
-  lea     rbp, [rbp*8]    ; Number of coefficients multiplied by 0x08.
-  mov     r14, rbp        ; r14 used later for saving coefficients on the stack.
+  lea     rbp, [rbp*8]
+  mov     r14, rbp ; r14 used later for saving coefficients on the stack.
   jmp     read_coefficients
 
 ; Calculates value under rax register modulo 0x10FF80.
+; This function was obtained by disassembling C code, it performs much better
+; than simply using div because we can use the fact that the modulo is a
+; constant. One can read https://gmplib.org/~tege/division-paper.pdf to get a grasp of it.
 _modulo:
   mov     rdx, 0x787c03a5c11c4499
   mov     r15, rax
@@ -134,79 +140,82 @@ _modulo:
 
 ; Parses coefficients and stores their value modulo 0x10FF80 on the stack.
 read_coefficients:
-  cmp     rbp, 0x08       ; Checks whether there are coefficients to parse.
-  je      read_input      ; No coefficients to parse - starts reading stdin.
-  mov     rdi, [rsp+rbp]  ; Stores next coefficient to parse in rdi register.
-  sub     rbp, 0x08       ; Where to look for next coefficient on the stack.
+  cmp     rbp, POINTER_SIZE ; Checks whether there are coefficients to parse.
+  je      read_input ; No coefficients to parse - starts reading stdin.
+  mov     rdi, [rsp+rbp] ; Stores next coefficient to parse in rdi register.
+  sub     rbp, POINTER_SIZE ; Where to look for next coefficient on the stack.
 
+; Numbers with starting zeroes are valid.
 atoi:
-  xor     rax, rax        ; Set initial total to 0.
-  xor     r12, r12
+  xor     rax, rax ; Set the initial total to 0.
+  xor     r12, r12 ; Number of digits parsed set to 0.
 
 convert:
   movzx   rsi, byte [rdi] ; Get the current character.
-  test    rsi, rsi        ; Check for \0.
+  test    rsi, rsi ; Check for \0.
   je      number_is_read
-  cmp     rsi, ZERO_CHAR  ; Anything less than 0 is invalid.
+  cmp     rsi, ZERO_CHAR ; Anything less than 0 is invalid.
   jl      error
-  mov     r11, rsi        ; Copy of rsi register.
-  cmp     rsi, NINE_CHAR  ; Anything greater than 9 is invalid.
+  mov     r11, rsi ; Copy of rsi register.
+  cmp     rsi, NINE_CHAR ; Anything greater than 9 is invalid.
   jg      error
   sub     rsi, ZERO_CHAR  ; Convert from ASCII to decimal.
-  ; Multiplying rax by 10.
+
+  ; Adding contribution of a single digit.
   lea     rax, [rax*4+rax]
   lea     rax, [rax*2+rsi]
-  inc     rdi             ; Get the address of the next character.
-  inc     r12
-  cmp     r12, NUM_OF_DI  ; When r12 equals NUM_OF_DI then take modulo.
+
+  inc     rdi ; Get the address of the next character.
+  inc     r12 ; Successfully parsed another digit.
+  cmp     r12, NUM_OF_DIGITS ; When r12 equals NUM_OF_DIGITS then take modulo.
   jne     convert
-  call    _modulo         ; Get value under rax modulo 0x10FF80.
+  call    _modulo ; Get value under rax modulo 0x10FF80.
   jmp     convert
 
 number_is_read:
-  call    _modulo         ; Get value under rax modulo 0x10FF80.
-  add     r14, 0x08       ; Where to save next coefficient.
-  mov     [rsp+r14], rax  ; Save next coefficient.
-  jmp     read_coefficients
+  call    _modulo ; Get value under rax modulo 0x10FF80.
+  add     r14, POINTER_SIZE ; Where to save next coefficient.
+  mov     [rsp+r14], rax ; Save next coefficient.
+  jmp     read_coefficients ; Continue parsing coefficients.
 
 get_polynomial_value:
-  mov     r13, [rsp]      ; Get number of coefficients+1.
-  lea     r14, [r13*8]    ; Multiply number of coefficients by 8.
-  dec     r13             ; Number of coefficients.
-  mov     rdi, rax        ; The answer will be in rax, save x to rdi.
+  mov     r13, [rsp] ; Get number of coefficients+1.
+  lea     r14, [r13*8] ; Multiply number of coefficients by 8, pointer size is 8.
+  dec     r13 ; Number of coefficients.
+  mov     rdi, rax ; The answer will be in rax, save x to rdi.
   xor     rax, rax
 
 ; Using Horner's Method to find polynomial's value at x.
-; Therefore coefficients` traversal starting with an not a0.
+; Therefore coefficients` traversal starting with a_n not a_0.
 traverse_coefficients:
-  add     r14, 0x08
-  imul    rax, rdi        ; Using Horner's Method. Multiply by x.
-  add     rax, [rsp+r14]  ; Using Horner's Method. Add next coefficient.
+  add     r14, POINTER_SIZE
+  imul    rax, rdi ; Using Horner's Method. Multiply by x.
+  add     rax, [rsp+r14] ; Using Horner's Method. Add next coefficient.
   call    _modulo
-  dec     r13             ; Decrease number of coefficients to traverse.
-  cmp     r13, ZERO       ; Check whether there are still some coefficients.
+  dec     r13 ; Decrease number of coefficients to traverse.
+  cmp     r13, ZERO ; Check whether there are still some coefficients.
   jne     traverse_coefficients
   call    _modulo
-  add     rax, 0x80
+  add     rax, DIA_CONSTANT
   jmp     write_utf_8_char
 
-read_to_bufor:
+read_to_buffer:
   mov     rax, SYS_READ
   mov     rdi, STDIN
-  mov     rsi, input
-  mov     rdx, CHUNK_SIZ
+  mov     rsi, input ; Buffer address.
+  mov     rdx, CHUNK_SIZE
   syscall
-  cmp     rax, ZERO
+  cmp     rax, ZERO ; Check for syscall errors.
   jl      error
   je      exit
-  mov     [input_size], rax
+  mov     [input_size], rax ; Saving number of bytes read.
   mov     r11, ZERO
-  mov     [input_ind], r11
+  mov     [input_ind], r11 ; Resetting starting index.
 
 _read_one_byte:
   mov     r11, ZERO
   cmp     [input_size], r11
-  je      read_to_bufor
+  je      read_to_buffer
   mov     r11, [input_ind]
   movzx   rax, byte [input+r11]
   inc     r11
