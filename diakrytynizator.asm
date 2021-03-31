@@ -98,7 +98,7 @@ output_ind resq 1
   mov     [output_ind], r15
   mov     [output_siz], r11
 
-  cmp     r11, CHUNK_SIZ ; Check whether buffer should be written to stdout.
+  cmp     r11, CHUNK_SIZE ; Check whether buffer should be written to stdout.
   jl      do_not_write_bytes
 
 write_bytes:
@@ -200,6 +200,7 @@ traverse_coefficients:
   add     rax, DIA_CONSTANT
   jmp     write_utf_8_char
 
+; Reads from stdin to the input buffer.
 read_to_buffer:
   mov     rax, SYSTEM_READ
   mov     rdi, STDIN
@@ -209,10 +210,12 @@ read_to_buffer:
   cmp     rax, ZERO ; Check for syscall errors.
   jl      error
   je      exit
+
   mov     [input_size], rax ; Saving number of bytes read.
   mov     r11, ZERO
   mov     [input_ind], r11 ; Resetting starting index.
 
+; Gets one byte from the input.
 _read_one_byte:
   mov     r11, ZERO
   cmp     [input_size], r11 ; Checking whether input buffer is not empty.
@@ -231,92 +234,132 @@ _read_one_byte:
 
 ; Parses input from stdin.
 read_input:
-  call    _read_one_byte
+  call    _read_one_byte ; Getting first byte of a character.
+
+  ; Checking whether it is a four bytes UTF-8 character.
   mov     r9, FB_FOUR_BYTES_SCHEME
   xor     r9, rax
   cmp     r9, FB_FOUR_BYTES_MAX_VAL
   jle     read_four_bytes_utf_8_char
+
+  ; Checking whether it is a three bytes UTF-8 character.
   mov     r9, FB_THREE_BYTES_SCHEME
   xor     r9, rax
   cmp     r9, FB_THREE_BYTES_MAX_VAL
   jle     read_three_bytes_utf_8_char
+
+  ; Checking whether it is a two bytes UTF-8 character.
   mov     r9, FB_TWO_BYTES_SCHEME
   xor     r9, rax
   cmp     r9, FB_TWO_BYTES_MAX_VAL
   jle     read_two_bytes_utf_8_char
+
+  ; Checking whether it is a one byte UTF-8 character.
   mov     r9, FB_ONE_BYTE_SCHEME
   xor     r9, rax
   cmp     r9, FB_ONE_BYTE_MAX_VAL
   jle     read_one_byte_utf_8_char
-  jmp     error
 
+  jmp     error ; Program can be given only 1,2,3 or 4 bytes UTF-8 characters.
+
+; Used for parsing bytes other than the first one.
 _get_additional_byte:
-  shl     rax, NUMBER_OF_BITS
-  push    rax
-  call    _read_one_byte
-  mov     rdi, rax
+  shl     rax, NUMBER_OF_BITS ; Make space for next byte.
+  push    rax ; rax needs to be restored.
+  call    _read_one_byte ; Now, rax contains additional byte value.
+  mov     rdi, rax ; Copy of the byte's value.
+
+  ; Checking whether the byte is correct, it has to be in a form 1xxxxxxx.
   xor     rdi, ADDITIONAL_BYTES_SC
   and     rdi, AUXILIARY_BYTE
   cmp     rdi, ZERO
   jne     error
+
+  ; The byte is correct, add its value to the decimal representation.
   mov     rdi, rax
   pop     rax
   add     rax, rdi
+
   ret
 
+; Prepares and invokes process of getting polynomial_value at some x.
 polynomial_value:
-  mov     rax, rdx
-  sub     rax, DIA_CONSTANT
+  mov     rax, rdx ; get_polynomial_value needs x value to be stored in rax.
+  sub     rax, DIA_CONSTANT ; Read task description to learn more about it.
   jmp     get_polynomial_value
 
 read_one_byte_utf_8_char:
   jmp     write_utf_8_char
 
 read_two_bytes_utf_8_char:
+  ; One additional byte is needed.
   call    _get_additional_byte
+
+  ; Conversion from UTF-8 to decimal.
   mov     r11, TWO_BYTES_P
   pext    rdx, rax, r11
   cmp     rdx, MIN_TWO_B
   jl      error
+
   jmp     polynomial_value
 
 read_three_bytes_utf_8_char:
+  ; Two additional bytes are needed.
   call    _get_additional_byte
   call    _get_additional_byte
+
+  ; Conversion from UTF-8 to decimal.
   mov     r11, THREE_BYTES_P
   pext    rdx, rax, r11
   cmp     rdx, MIN_THREE_B
   jl      error
+
   jmp     polynomial_value
 
 read_four_bytes_utf_8_char:
+  ; Three additional bytes are needed.
   call    _get_additional_byte
   call    _get_additional_byte
   call    _get_additional_byte
+
+  ; Conversion from UTF-8 to decimal.
   mov     r11, FOUR_BYTES_P
   pext    rdx, rax, r11
   cmp     rdx, MIN_FOUR_B
   jl      error
+
+  ; Checking whether the character doesn't exceed the maximal possible
+  ; value from the task description.
   cmp     rdx, MAX_DEC_CHAR_VAL
   jg      error
+
   jmp     polynomial_value
 
 write_utf_8_char:
+  ; Check whether it's a one byte character.
   cmp     rax, MAX_ONE_B
   jle     write_one_byte_utf_8_char
+
+  ; Check whether it's a two bytes character.
   cmp     rax, MAX_TWO_B
   jle     write_two_bytes_utf_8_char
+
+  ; Check whether it's a three bytes character.
   cmp     rax, MAX_THR_B
   jle     write_three_bytes_utf_8_char
+
+  ; Check whether it's a four bytes character.
   cmp     rax, MAX_FOU_B
   jle     write_four_bytes_utf_8_char
 
+; Traverses all the bytes of a character and writes them to the output
+; buffer / stdout.
 write_to_output:
-  mov     r10, r13
+  mov     r10, r13 ; Number of bytes is stored in r10.
 loop:
   dec     r13
-  write_byte_to_output rdx, r13
-  cmp     r13, ZERO
+  write_byte_to_output rdx, r13 ; The character's value is stored in rdx.
+  cmp     r13, ZERO ; Check whether there are still some bytes to write.
   je      read_input
   jmp     loop
 
@@ -326,40 +369,51 @@ write_one_byte_utf_8_char:
   jmp     write_to_output
 
 write_two_bytes_utf_8_char:
+  ; Conversion from decimal to UTF-8.
   mov     r11, TWO_BYTES_P
   pdep    rdx, rax, r11
   mov     r11, TWO_BYTES_CHAR_SC
   add     rdx, r11
+
   mov     r13, TWO_BYTES
   jmp     write_to_output
 
 write_three_bytes_utf_8_char:
+  ; Conversion from decimal to UTF-8.
   mov     r11, THREE_BYTES_P
   pdep    rdx, rax, r11
   mov     r11, THREE_BYTES_CHAR_SC
   add     rdx, r11
+
   mov     r13, THREE_BYTES
   jmp     write_to_output
 
 write_four_bytes_utf_8_char:
+  ; Conversion from decimal to UTF-8.
   mov     r11, FOUR_BYTES_P
   pdep    rdx, rax, r11
   mov     r11, FOUR_BYTES_CHAR_SC
   add     rdx, r11
+
   mov     r13, FOUR_BYTES
   jmp     write_to_output
 
+; Writes output buffer to stdout.
 _write_to_stdout:
   mov     rax, SYSTEM_WRITE
   mov     rdi, STDOUT
   mov     rsi, output
   mov     rdx, [output_siz]
   syscall
+
+  ; Adjust buffer size and current index.
   mov     r15, ZERO
   mov     [output_ind], r15
   mov     [output_siz], r15
-  cmp     rax, ZERO
+
+  cmp     rax, ZERO ; Check whether syscall was successful.
   jl      error
+
   ret
 
 ; Exit with return code 1.
