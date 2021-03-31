@@ -1,66 +1,72 @@
 section .data
 
-; Define constants.
-SYS_EXIT  equ 60          ; Call code for terminate.
-EXIT_SUC  equ 0           ; Return code on an successful exit.
-EXIT_FAI  equ 1           ; Return code on an unsuccessful exit.
-ZERO_CHAR equ 48          ; ASCII for '0' character.
-NINE_CHAR equ 57          ; ASCII for '9' character.
-ZERO      equ 0
-CHUNK_SIZ equ 2000
-DEC_BASIS equ 10          ; Decimal basis.
-START_IND equ 0           ; Starting index.
-STDOUT	  equ 1           ; Code for stdout.
-MI_N_OF_C equ 1           ; Minimum number of coefficients.
-STDIN     equ 0           ; Code for stdin.
-SYS_READ  equ 0           ; Code for SYS_READ.
-SYS_WRITE equ 1           ; Code for SYS_WRTIE.
-MODULO    equ 0x10FF80    ; Value of the modulo.
-NUM_OF_DI equ 11          ; Take modulo after reading NUM_OF_DI digits.
-FB_OB_SC  equ 00000000b   ; First byte scheme for one byte UTF-8 is 0xxxxxxx.
-FB_TWB_SC equ 11000000b   ; First byte scheme for two bytes UTF-8 is 110xxxxx.
-FB_THB_SC equ 11100000b   ; First byte scheme for three bytes UTF-8 is 1110xxxx.
-FB_FOB_SC equ 11110000b   ; First byte scheme for four bytes UTF-8 is 11110xxx.
+; Constants.
+SYSTEM_EXIT            equ 60 ; Syscall code for terminate.
+EXIT_SUCCESS           equ 0 ; Return code on an successful exit.
+EXIT_FAIL              equ 1 ; Return code on an unsuccessful exit.
+STDIN                  equ 0 ; Code for stdin.
+STDOUT	               equ 1 ; Code for stdout.
+SYSTEM_READ            equ 0 ; Code for SYS_READ.
+SYSTEN_WRITE           equ 1 ; Code for SYS_WRTIE.
+ZERO_CHAR              equ 48 ; ASCII for '0' character.
+NINE_CHAR              equ 57 ; ASCII for '9' character.
+ZERO                   equ 0 ; Decimal zero.
+CHUNK_SIZE             equ 2000 ; Size of buffer chunks.
+STARTING_INDEX         equ 0 ; Starting index in arrays.
+DECIMAL_BASIS          equ 10 ; Decimal basis.
+MIN_NUM_OF_COEFF       equ 1 ; Minimum number of coefficients.
+MODULO                 equ 0x10FF80 ; Value of the modulo.
+NUM_OF_DIGITS          equ 11 ; Take modulo after reading NUM_OF_DIGITS digits.
 
-FOB_MA_V  equ 01111111b
-FTWB_MA_V equ 00011111b
-FTHB_MA_V equ 00001111b
-FFOB_MA_V equ 00000111b
+; First byte schemes in UTF-8.
+FB_ONE_BYTE_SCHEME     equ 00000000b ; One byte scheme UTF-8 is 0xxxxxxx.
+FB_TWO_BYTES_SCHEME    equ 11000000b ; Two bytes UTF-8 is 110xxxxx.
+FB_THREE_BYTES_SCHEME  equ 11100000b ; Three bytes UTF-8 is 1110xxxx.
+FB_FOUR_BYTES_SCHEME   equ 11110000b ; Four bytes UTF-8 is 11110xxx.
 
-; Used for projecting UTF-8 characters with PEXT and PDEP.
-FB_TWB_P  equ 0001111100111111b
-FB_THB_P  equ 000011110011111100111111b
-FB_FOB_P  equ 00000111001111110011111100111111b
+; Maximum first byte's value when xored with corresponding first byte scheme.
+FB_ONE_BYTE_MAX_VAL    equ 01111111b ; One byte UTF-8 character.
+FB_TWO_BYTES_MAX_VAL   equ 00011111b ; Two bytes UTF-8 character.
+FB_THREE_BYTES_MAX_VAL equ 00001111b ; Three bytes UTF-8 character.
+FB_FOUR_BYTES_MAX_VAL  equ 00000111b ; Four bytes UTF-8 character.
+
+; Used for projecting binary to UTF-8 characters and UTF-8 characters
+; to binary using PEXT and PDEP.
+TWO_BYTES_P            equ 0001111100111111b
+THREE_BYTES_P          equ 000011110011111100111111b
+FOUR_BYTES_P           equ 00000111001111110011111100111111b
 
 ; Scheme for two bytes UTF-8 is 110xxxxx10xxxxxx.
-TWB_CH_SC equ 1100000010000000b
+TWO_BYTES_CHAR_SC      equ 1100000010000000b
 ; Scheme for three bytes UTF-8 is 1110xxxx10xxxxxx10xxxxxx.
-THB_CH_SC equ 111000001000000010000000b
- ; Scheme for four bytes UTF-8 is 11110xxx10xxxxxx10xxxxxx10xxxxxx.
-FOB_CH_SC equ 11110000100000001000000010000000b
+THREE_BYTES_CHAR_SC    equ 111000001000000010000000b
+; Scheme for four bytes UTF-8 is 11110xxx10xxxxxx10xxxxxx10xxxxxx.
+FOUR_CHAR_SC           equ 11110000100000001000000010000000b
 
 ; Maximum values for k-bytes UTF-8 characters.
-MAX_ONE_B equ 0x7F        ; Maximum value for one byte UTF-8 character
-MAX_TWO_B equ 0x7FF       ; Maximum value for two bytes UTF-8 character
-MAX_THR_B equ 0xFFFF      ; Maximum value for three bytes UTF-8 character
-MAX_FOU_B equ 0x1FFFFF    ; Maximum value for four bytes UTF-8 character
+MAX_ONE_B              equ 0x7F ; Maximum value for one byte UTF-8 character.
+MAX_TWO_B              equ 0x7FF ; Maximum value for two bytes UTF-8 character.
+MAX_THR_B              equ 0xFFFF ; Maximum value for three bytes UTF-8 char.
+MAX_FOU_B              equ 0x1FFFFF ; Maximum value for four bytes UTF-8 char.
 
 ; Minimum values for k-bytes UTF-8 characters.
-MIN_TWO_B equ 0x80        ; Minimum value for two bytes UTF-8 character
-MIN_THR_B equ 0x800       ; Minimum value for three bytes UTF-8 character
-MIN_FOU_B equ 0x10000     ; Minimum value for four bytes UTF-8 character
+MIN_TWO_B              equ 0x80 ; Minimum value for two bytes UTF-8 character.
+MIN_THREE_B            equ 0x800 ; Minimum value for three bytes UTF-8 char.
+MIN_FOUR_B             equ 0x10000 ; Minimum value for four bytes UTF-8 char.
 
 ; How many bytes.
-ONE_BYTE  equ 1
-TWO_BYTES equ 2
-THR_BYTES equ 3
-FOU_BYTES equ 4
+ONE_BYTE               equ 1
+TWO_BYTES              equ 2
+THREE_BYTES            equ 3
+FOUR_BYTES             equ 4
 
-ADDB_SCHE equ 10000000b
-AUX_BYTE  equ 11000000b
+; Scheme for not first bytes in UTF-8 is 1xxxxxxx.
+ADDITIONAL_BYTES_SC    equ 10000000b
+; Used for checking not first bytes correctness in UTF-8 characters.
+AUXILIARY_BYTE         equ 11000000b
 
-EIG_BITS  equ 8            ; Eight bits.
-EL_BIT_MA equ 11111111b
+NUMBER_OF_BITS         equ 8 ; Eight bits.
+LIT_BYTE               equ 11111111b ; Eight lit bits.
 
 section .bss
 
@@ -251,7 +257,7 @@ read_one_byte_utf_8_char:
 
 read_two_bytes_utf_8_char:
   call    _get_additional_byte
-  mov     r11, FB_TWB_P
+  mov     r11, TWO_BYTES_P
   pext    rdx, rax, r11
   cmp     rdx, MIN_TWO_B
   jl      error
@@ -260,7 +266,7 @@ read_two_bytes_utf_8_char:
 read_three_bytes_utf_8_char:
   call    _get_additional_byte
   call    _get_additional_byte
-  mov     r11, FB_THB_P
+  mov     r11, THREE_BYTES_P
   pext    rdx, rax, r11
   cmp     rdx, MIN_THR_B
   jl      error
@@ -270,7 +276,7 @@ read_four_bytes_utf_8_char:
   call    _get_additional_byte
   call    _get_additional_byte
   call    _get_additional_byte
-  mov     r11, FB_FOB_P
+  mov     r11, FOUR_BYTES_P
   pext    rdx, rax, r11
   cmp     rdx, MIN_FOU_B
   jl      error
@@ -303,7 +309,7 @@ write_one_byte_utf_8_char:
   jmp     write_to_output
 
 write_two_bytes_utf_8_char:
-  mov     r11, FB_TWB_P
+  mov     r11, TWO_BYTES_P
   pdep    rdx, rax, r11
   mov     r11, TWB_CH_SC
   add     rdx, r11
@@ -311,7 +317,7 @@ write_two_bytes_utf_8_char:
   jmp     write_to_output
 
 write_three_bytes_utf_8_char:
-  mov     r11, FB_THB_P
+  mov     r11, THREE_BYTES_P
   pdep    rdx, rax, r11
   mov     r11, THB_CH_SC
   add     rdx, r11
@@ -319,7 +325,7 @@ write_three_bytes_utf_8_char:
   jmp     write_to_output
 
 write_four_bytes_utf_8_char:
-  mov     r11, FB_FOB_P
+  mov     r11, FOUR_BYTES_P
   pdep    rdx, rax, r11
   mov     r11, FOB_CH_SC
   add     rdx, r11
