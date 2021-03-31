@@ -7,7 +7,7 @@ EXIT_FAI  equ 1           ; Return code on an unsuccessful exit.
 ZERO_CHAR equ 48          ; ASCII for '0' character.
 NINE_CHAR equ 57          ; ASCII for '9' character.
 ZERO      equ 0
-CHUNK_SIZ equ 1000
+CHUNK_SIZ equ 2000
 DEC_BASIS equ 10          ; Decimal basis.
 START_IND equ 0           ; Starting index.
 STDOUT	  equ 1           ; Code for stdout.
@@ -64,10 +64,10 @@ EL_BIT_MA equ 11111111b
 
 section .bss
 
-input      resb 2000
+input      resb 4000
 input_size resq 1
 input_ind  resq 1
-output     resb 2000
+output     resb 4000
 output_siz resq 1
 output_ind resq 1
 
