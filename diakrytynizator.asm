@@ -78,26 +78,30 @@ output_siz resq 1
 output_ind resq 1
 
 %macro write_byte_to_output 2
-  mov     r11, %1         ; Get the integer.
-  mov     rcx, %2         ; Which byte.
-  mov     rdi, EL_BIT_MA
-  lea     rcx, [rcx*8]
-  shr     r11, cl
-  and     r11, rdi
-  mov     r15, [output_ind]
-  mov     [output+r15], r11
+  mov     r11, %1 ; Byte value.
+  mov     rcx, %2 ; Which byte minus one in the UTF-8 character.
+  mov     rdi, LIT_BYTE
+  lea     rcx, [rcx*8] ; Change number of bytes into number of bits.
+  shr     r11, cl ; The byte is now the first one in the integer.
+  and     r11, rdi ; Obtaining integer value of the byte.
+  mov     r15, [output_ind] ; Get an actual index of the output buffer.
+  mov     [output+r15], r11 ; Write byte to the output buffer.
+
+  ; Increasing the output buffer's size and index.
   mov     r11, [output_siz]
   inc     r11
   inc     r15
   mov     [output_ind], r15
   mov     [output_siz], r11
-  cmp     r11, CHUNK_SIZ
+
+  cmp     r11, CHUNK_SIZ ; Check whether buffer should be written to stdout.
   jl      do_not_write_bytes
 
 write_bytes:
   mov     rcx, %2
   cmp     rcx, ZERO
-  jne     do_not_write_bytes
+  jne     do_not_write_bytes ; Do not write partial characters to stdin.
+
   call    _write_to_stdout
 
 do_not_write_bytes:
