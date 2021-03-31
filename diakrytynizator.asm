@@ -7,7 +7,7 @@ EXIT_FAIL              equ 1 ; Return code on an unsuccessful exit.
 STDIN                  equ 0 ; Code for stdin.
 STDOUT	               equ 1 ; Code for stdout.
 SYSTEM_READ            equ 0 ; Code for SYS_READ.
-SYSTEN_WRITE           equ 1 ; Code for SYS_WRTIE.
+SYSTEM_WRITE           equ 1 ; Code for SYS_WRTIE.
 ZERO_CHAR              equ 48 ; ASCII for '0' character.
 NINE_CHAR              equ 57 ; ASCII for '9' character.
 ZERO                   equ 0 ; Decimal zero.
@@ -41,7 +41,7 @@ TWO_BYTES_CHAR_SC      equ 1100000010000000b
 ; Scheme for three bytes UTF-8 is 1110xxxx10xxxxxx10xxxxxx.
 THREE_BYTES_CHAR_SC    equ 111000001000000010000000b
 ; Scheme for four bytes UTF-8 is 11110xxx10xxxxxx10xxxxxx10xxxxxx.
-FOUR_CHAR_SC           equ 11110000100000001000000010000000b
+FOUR_BYTES_CHAR_SC     equ 11110000100000001000000010000000b
 
 ; Maximum values for k-bytes UTF-8 characters.
 MAX_ONE_B              equ 0x7F ; Maximum value for one byte UTF-8 character.
@@ -69,7 +69,8 @@ NUMBER_OF_BITS         equ 8 ; Eight bits.
 LIT_BYTE               equ 11111111b ; Eight lit bits.
 POINTER_SIZE           equ 0x08 ; Pointer size in bytes.
 
-DIA_CONSTANT          equ 0x80 ; Diacritization constant.
+DIA_CONSTANT           equ 0x80 ; Diacritization constant.
+MAX_DEC_CHAR_VAL       equ 0x10FFFF ; Maximum decimal value of an UTF-8 char.
 
 section .bss
 
@@ -200,7 +201,7 @@ traverse_coefficients:
   jmp     write_utf_8_char
 
 read_to_buffer:
-  mov     rax, SYS_READ
+  mov     rax, SYSTEM_READ
   mov     rdi, STDIN
   mov     rsi, input ; Buffer address.
   mov     rdx, CHUNK_SIZE
@@ -214,45 +215,48 @@ read_to_buffer:
 
 _read_one_byte:
   mov     r11, ZERO
-  cmp     [input_size], r11
+  cmp     [input_size], r11 ; Checking whether input buffer is not empty.
   je      read_to_buffer
-  mov     r11, [input_ind]
-  movzx   rax, byte [input+r11]
+  mov     r11, [input_ind] ; Getting the current buffer position.
+  movzx   rax, byte [input+r11] ; Getting one byte from the buffer.
+
+  ; Adjusting input size and current index.
   inc     r11
   mov     [input_ind], r11
   mov     r12, [input_size]
   dec     r12
   mov     [input_size], r12
+
   ret
 
 ; Parses input from stdin.
 read_input:
   call    _read_one_byte
-  mov     r9, FB_FOB_SC
+  mov     r9, FB_FOUR_BYTES_SCHEME
   xor     r9, rax
-  cmp     r9, FFOB_MA_V
+  cmp     r9, FB_FOUR_BYTES_MAX_VAL
   jle     read_four_bytes_utf_8_char
-  mov     r9, FB_THB_SC
+  mov     r9, FB_THREE_BYTES_SCHEME
   xor     r9, rax
-  cmp     r9, FTHB_MA_V
+  cmp     r9, FB_THREE_BYTES_MAX_VAL
   jle     read_three_bytes_utf_8_char
-  mov     r9, FB_TWB_SC
+  mov     r9, FB_TWO_BYTES_SCHEME
   xor     r9, rax
-  cmp     r9, FTWB_MA_V
+  cmp     r9, FB_TWO_BYTES_MAX_VAL
   jle     read_two_bytes_utf_8_char
-  mov     r9, FB_OB_SC
+  mov     r9, FB_ONE_BYTE_SCHEME
   xor     r9, rax
-  cmp     r9, FOB_MA_V
+  cmp     r9, FB_ONE_BYTE_MAX_VAL
   jle     read_one_byte_utf_8_char
   jmp     error
 
 _get_additional_byte:
-  shl     rax, EIG_BITS
+  shl     rax, NUMBER_OF_BITS
   push    rax
   call    _read_one_byte
   mov     rdi, rax
-  xor     rdi, ADDB_SCHE
-  and     rdi, AUX_BYTE
+  xor     rdi, ADDITIONAL_BYTES_SC
+  and     rdi, AUXILIARY_BYTE
   cmp     rdi, ZERO
   jne     error
   mov     rdi, rax
@@ -262,7 +266,7 @@ _get_additional_byte:
 
 polynomial_value:
   mov     rax, rdx
-  sub     rax, 0x80
+  sub     rax, DIA_CONSTANT
   jmp     get_polynomial_value
 
 read_one_byte_utf_8_char:
@@ -281,7 +285,7 @@ read_three_bytes_utf_8_char:
   call    _get_additional_byte
   mov     r11, THREE_BYTES_P
   pext    rdx, rax, r11
-  cmp     rdx, MIN_THR_B
+  cmp     rdx, MIN_THREE_B
   jl      error
   jmp     polynomial_value
 
@@ -291,9 +295,9 @@ read_four_bytes_utf_8_char:
   call    _get_additional_byte
   mov     r11, FOUR_BYTES_P
   pext    rdx, rax, r11
-  cmp     rdx, MIN_FOU_B
+  cmp     rdx, MIN_FOUR_B
   jl      error
-  cmp     rdx, 0x10FFFF
+  cmp     rdx, MAX_DEC_CHAR_VAL
   jg      error
   jmp     polynomial_value
 
@@ -324,7 +328,7 @@ write_one_byte_utf_8_char:
 write_two_bytes_utf_8_char:
   mov     r11, TWO_BYTES_P
   pdep    rdx, rax, r11
-  mov     r11, TWB_CH_SC
+  mov     r11, TWO_BYTES_CHAR_SC
   add     rdx, r11
   mov     r13, TWO_BYTES
   jmp     write_to_output
@@ -332,21 +336,21 @@ write_two_bytes_utf_8_char:
 write_three_bytes_utf_8_char:
   mov     r11, THREE_BYTES_P
   pdep    rdx, rax, r11
-  mov     r11, THB_CH_SC
+  mov     r11, THREE_BYTES_CHAR_SC
   add     rdx, r11
-  mov     r13, THR_BYTES
+  mov     r13, THREE_BYTES
   jmp     write_to_output
 
 write_four_bytes_utf_8_char:
   mov     r11, FOUR_BYTES_P
   pdep    rdx, rax, r11
-  mov     r11, FOB_CH_SC
+  mov     r11, FOUR_BYTES_CHAR_SC
   add     rdx, r11
-  mov     r13, FOU_BYTES
+  mov     r13, FOUR_BYTES
   jmp     write_to_output
 
 _write_to_stdout:
-  mov     rax, SYS_WRITE
+  mov     rax, SYSTEM_WRITE
   mov     rdi, STDOUT
   mov     rsi, output
   mov     rdx, [output_siz]
@@ -358,16 +362,16 @@ _write_to_stdout:
   jl      error
   ret
 
-; Exit with return code 0.
+; Exit with return code 1.
 error:
   call    _write_to_stdout
-  mov     eax, SYS_EXIT   ; Use SYS_EXIT.
-  mov     edi, EXIT_FAI   ; Return 1 on error
+  mov     eax, SYSTEM_EXIT ; Use SYS_EXIT.
+  mov     edi, EXIT_FAIL ; Return 1 on error
   syscall
 
 ; Exit with return code 0.
 exit:
   call    _write_to_stdout
-  mov     eax, SYS_EXIT   ; Use SYS_EXIT.
-  mov     edi, EXIT_SUC   ; Return code is zero.
+  mov     eax, SYSTEM_EXIT ; Use SYS_EXIT.
+  mov     edi, EXIT_SUCCESS ; Return code is zero.
   syscall
