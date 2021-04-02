@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // Interfejs między C a Asemblerem
 uint64_t notec(uint32_t n, char const *calc);
@@ -26,10 +27,10 @@ int64_t debug(uint32_t n, uint64_t *stack_pointer) {
 }
 
 int main () {
-  char *napis = "121AB";
+  char *napis = "121AB\0";
   int64_t res = notec(0, napis);
 
-  printf("%lld\n", res);
+  printf("%ld\n", res);
 
   return 0;
 }

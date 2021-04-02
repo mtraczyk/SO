@@ -15,7 +15,7 @@ section .bss
 align 8
 
 %ifdef N
-which_notec_to_wait_for dq N ; Shared data between threads.
+which_notec_to_wait_for resq N ; Shared data between threads.
 %endif
 
 section .text
