@@ -63,6 +63,7 @@ parse_number:
 
 add_new_number_to_stack:
   push    rdx
+  mov     rcx, IS_WRI_NUMBER_MODE_ON
   jmp     parsing_character_finished
 
 keep_parsing:
