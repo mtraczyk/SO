@@ -15,16 +15,14 @@ EQUAL_SIGN              equ 61 ; ASCII for '='.
 PLUS_SIGN               equ 43 ; ASCII for '+'.
 MINUS_SIGN              equ 45 ; ASCII for '-'.
 
+section .bss
+
 align 8
 
 %ifdef N
 which_notec_to_wait_for resq N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
 %endif
-
-section .bss
-
-align 8
 
 section .text
 
@@ -102,7 +100,7 @@ keep_parsing:
 parsing_character_finished:
   inc     rsi ; Where to look for next character.
   pop     rax
-  mov     [top_stack_number+rsi*8], rax ; Update stack_top for this notec.
+  mov     [top_stack_number+rdi*8], rax ; Update stack_top for this notec.
   push    rax
   jmp     read_data ; Continue reading input.
 
