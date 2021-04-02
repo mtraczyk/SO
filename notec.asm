@@ -1,3 +1,4 @@
+extern debug
 global notec
 
 section .data
@@ -20,10 +21,7 @@ align 8
 
 %ifdef N
 which_notec_to_wait_for resq N ; Used when W appears.
-%endif
-
-%ifdef N
-stack_top               resq N ; Current top of a stack for every notec.
+top_stack_number        resq N ; Used to store top stack numbers.
 %endif
 
 section .text
