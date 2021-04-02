@@ -20,6 +20,9 @@ align 8
 
 %ifdef N
 which_notec_to_wait_for resq N ; Used when W appears.
+%endif
+
+%ifdef N
 stack_top               resq N ; Current top of a stack for every notec.
 %endif
 
