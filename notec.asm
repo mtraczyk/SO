@@ -8,14 +8,19 @@ NINE_CHAR               equ 57 ; ASCII for '9' character.
 A_CHAR                  equ 65 ; ASCII for 'A' character.
 F_CHAR                  equ 70 ; ASCII for 'F' character.
 DECIMAL_BASIS           equ 10 ; Decimal basis.
-IS_WRI_NUMBER_MODE_ON   equ 1  ; Value under rcx equals one when the mode is on.
+WRI_NUMBER_MODE_ON      equ 1  ; Writing number mode on.
+WRI_NUMBER_MODE_OFF     equ 0  ; Writing number mode off.
+EQUAL_SIGN              equ 61 ; ASCII for '='.
+PLUS_SIGN               equ 43 ; ASCII for '+'.
+MINUS_SIGN              equ 45 ; ASCII for '-'.
 
 section .bss
 
 align 8
 
 %ifdef N
-which_notec_to_wait_for resq N ; Shared data between threads.
+which_notec_to_wait_for resq N ; Used when W appears.
+stack_top               resq N ; Current top of a stack for every notec.
 %endif
 
 section .text
@@ -41,16 +46,16 @@ check_for_0_to_9_digit:
 
 check_for_A_to_F_char:
   cmp     rdx, A_CHAR
-  jl      keep_parsing ; Not an A-F char.
+  jl      check_equal_sign ; Not an A-F char.
   cmp     rdx, F_CHAR
-  jg      keep_parsing ; Not an A-F char.
+  jg      check_equal_sign ; Not an A-F char.
 
   ; It is an A-F char. Conversion into a 10-15 number.
   sub     rdx, A_CHAR
   add     rdx, DECIMAL_BASIS
 
 parse_number:
-  cmp     rcx, IS_WRI_NUMBER_MODE_ON
+  cmp     rcx, WRI_NUMBER_MODE_ON
   jne     add_new_number_to_stack ; A new number has to be added onto the stack.
 
   ; Writing mode is on, adjust the number on the top of the stack.
@@ -62,16 +67,42 @@ parse_number:
   jmp     parsing_character_finished
 
 add_new_number_to_stack:
-  push    rdx
-  mov     rcx, IS_WRI_NUMBER_MODE_ON
+  push    rdx ; Pushing new number onto the stack.
+  mov     rcx, WRI_NUMBER_MODE_ON ; Turn on writing number mode.
+  jmp     parsing_character_finished
+
+check_equal_sign:
+  cmp     rdx, EQUAL_SIGN
+  jne     check_plus_sign
+  mov     rcx, WRI_NUMBER_MODE_OFF ; Turn off writing number mode.
+  jmp     parsing_character_finished
+
+check_plus_sign:
+  cmp     rdx, PLUS_SIGN
+  jne     check_minus_sign
+  pop     r8
+  pop     r9
+  add     r8, r9
+  push    r8
+  jmp     parsing_character_finished
+
+check_minus_sign:
+  cmp     rdx, MINUS_SIGN
+  jne     keep_parsing
+  pop     r8
+  neg     r8
+  push    r8
   jmp     parsing_character_finished
 
 keep_parsing:
 
 parsing_character_finished:
   inc     rsi ; Where to look for next character.
+  pop     rax
+  mov     [stack_top+rsi*8], rax ; Update stack_top for this notec.
+  push    rax
   jmp     read_data ; Continue reading input.
 
 traversal_finished:
-  pop     rax
+  pop     rax ; Obtain the returning value.
   ret
