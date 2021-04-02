@@ -55,7 +55,8 @@ parse_number:
 
   ; Writing mode is on, adjust the number on the top of the stack.
   pop     rax
-  lea     rax, [rax*16]
+  lea     rax, [rax*8]
+  lea     rax, [rax*2]
   add     rax, rdx
   push    rax
   jmp     parsing_character_finished
