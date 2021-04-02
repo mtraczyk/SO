@@ -100,7 +100,8 @@ keep_parsing:
 parsing_character_finished:
   inc     rsi ; Where to look for next character.
   pop     rax
-  mov     [top_stack_number+rdi*8], rax ; Update stack_top for this notec.
+  lea     r8, [top_stack_number]
+  mov     [r8+rdi*8], rax ; Update stack_top for this notec.
   push    rax
   jmp     read_data ; Continue reading input.
 
