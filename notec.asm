@@ -58,7 +58,6 @@ notec:
 read_data:
   movzx   rdx, byte [rsi] ; Get one ASCIIZ character.
   test    rdx, rdx ; Check for \0.
-nic:
   je      traversal_finished ; No more characters to read.
 
 check_for_0_to_9_digit:
@@ -195,8 +194,8 @@ check_X_char:
   jne     check_N_char
   pop     r8
   pop     r9
-  push    r9
   push    r8
+  push    r9
   jmp     parsing_character_finished
 
 check_N_char:
