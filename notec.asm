@@ -127,10 +127,10 @@ check_plus_sign:
 check_multiply_sign:
   cmp     rdx, MULTIPLY_SIGN
   jne     check_minus_sign
-  pop     r8
+  pop     rax
   pop     r9
-  mul     r8, r9
-  push    r8
+  mul     r9
+  push    rax
   jmp     parsing_character_finished
 
 check_minus_sign:
