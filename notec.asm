@@ -228,11 +228,11 @@ check_g_char:
 
 check_W_char:
   pop     rax ; Notec instance to wait for.
-  mov     r8, which_notec_to_wait_for
-  mov     [r8+rdi*8], rax
   pop     r9
   mov     r8, top_stack_number
   mov     [r8+rdi*8], r9
+  mov     r8, which_notec_to_wait_for
+  mov     [r8+rdi*8], rax
   cmp     rdi, rax
   je      parsing_character_finished ; Undefined operation.
   jg      wait_for_notec_with_smaller_number
