@@ -15,6 +15,7 @@ WRI_NUMBER_MODE_ON      equ 1   ; Writing number mode on.
 WRI_NUMBER_MODE_OFF     equ 0   ; Writing number mode off.
 EQUAL_SIGN              equ 61  ; ASCII for '='.
 PLUS_SIGN               equ 43  ; ASCII for '+'.
+MULTIPLY_SIGN           equ 42  ; ASCII for '*'.
 MINUS_SIGN              equ 45  ; ASCII for '-'.
 AND_SIGN                equ 38  ; ASCII for '&'.
 OR_SIGN                 equ 124 ; ASCII for '|'.
@@ -116,10 +117,19 @@ check_equal_sign:
 
 check_plus_sign:
   cmp     rdx, PLUS_SIGN
-  jne     check_minus_sign
+  jne     check_multiply_sign
   pop     r8
   pop     r9
   add     r8, r9
+  push    r8
+  jmp     parsing_character_finished
+
+check_multiply_sign:
+  cmp     rdx, MULTIPLY_SIGN
+  jne     check_minus_sign
+  pop     r8
+  pop     r9
+  mul     r8, r9
   push    r8
   jmp     parsing_character_finished
 
