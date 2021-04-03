@@ -109,9 +109,9 @@ add_new_number_to_stack:
   jmp     parsing_character_finished
 
 check_equal_sign:
+  mov     rcx, WRI_NUMBER_MODE_OFF ; Turn off writing number mode.
   cmp     rdx, EQUAL_SIGN
   jne     check_plus_sign
-  mov     rcx, WRI_NUMBER_MODE_OFF ; Turn off writing number mode.
   jmp     parsing_character_finished
 
 check_plus_sign:
