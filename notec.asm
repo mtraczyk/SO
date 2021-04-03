@@ -242,7 +242,7 @@ check_W_char:
 is_notec_with_bigger_number_on:
   mov     r8, is_the_notec_working
   xor     r9, r9
-  mov     r9, byte [r8+rax]
+  mov     r9, [r8+rax]
   cmp     r9, NOTEC_AT_WORK
   jne     is_notec_with_bigger_number_on
 
