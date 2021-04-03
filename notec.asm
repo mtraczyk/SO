@@ -134,10 +134,42 @@ check_xor_sign:
 
 check_not_sign:
   cmp     rdx, NOT_SIGN
-  jne     keep_parsing
+  jne     check_Z_char
   pop     r8
   not     r8
   push    r8
+  jmp     parsing_character_finished
+
+check_Z_char:
+  cmp     rdx, Z_CHAR
+  jne     check_Y_char
+  pop     r8
+  jmp     parsing_character_finished
+
+check_Y_char:
+  cmp     rdx, Y_CHAR
+  jne     check_X_char
+  mov     r8, top_stack_number
+  mov     r9, [r8+rdi*8]
+  push    r9
+  jmp     parsing_character_finished
+
+check_X_char:
+  cmp     rdx, X_CHAR
+  jne     check_N_char
+  pop     r8
+  pop     r9
+  push    r9
+  push    r8
+  jmp     parsing_character_finished
+
+check_N_char:
+  cmp     rdx, N_CHAR
+  jne     keep_parsing
+  %ifdef N
+  mov     rax, N
+  push    rax
+  %endif
   jmp     parsing_character_finished
 
 keep_parsing:
