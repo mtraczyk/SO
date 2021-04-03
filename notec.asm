@@ -4,16 +4,26 @@ global notec
 section .data
 
 ; Constants.
-ZERO_CHAR               equ 48 ; ASCII for '0' character.
-NINE_CHAR               equ 57 ; ASCII for '9' character.
-A_CHAR                  equ 65 ; ASCII for 'A' character.
-F_CHAR                  equ 70 ; ASCII for 'F' character.
-DECIMAL_BASIS           equ 10 ; Decimal basis.
-WRI_NUMBER_MODE_ON      equ 1  ; Writing number mode on.
-WRI_NUMBER_MODE_OFF     equ 0  ; Writing number mode off.
-EQUAL_SIGN              equ 61 ; ASCII for '='.
-PLUS_SIGN               equ 43 ; ASCII for '+'.
-MINUS_SIGN              equ 45 ; ASCII for '-'.
+ZERO_CHAR               equ 48  ; ASCII for '0' character.
+NINE_CHAR               equ 57  ; ASCII for '9' character.
+A_CHAR                  equ 65  ; ASCII for 'A' character.
+F_CHAR                  equ 70  ; ASCII for 'F' character.
+DECIMAL_BASIS           equ 10  ; Decimal basis.
+WRI_NUMBER_MODE_ON      equ 1   ; Writing number mode on.
+WRI_NUMBER_MODE_OFF     equ 0   ; Writing number mode off.
+EQUAL_SIGN              equ 61  ; ASCII for '='.
+PLUS_SIGN               equ 43  ; ASCII for '+'.
+MINUS_SIGN              equ 45  ; ASCII for '-'.
+AND_SIGN                equ 38  ; ASCII for '&'.
+OR_SIGN                 equ 124 ; ASCII for '|'.
+XOR_SIGN                equ 94  ; ASCII for '^'.
+NOT_SIGN                equ 126 ; ASCII for '~'.
+Z_CHAR                  equ 90  ; ASCII for 'Z' character.
+Y_CHAR                  equ 89  ; ASCII for 'Y' character.
+X_CHAR                  equ 88  ; ASCII for 'X' character.
+n_CHAR                  equ 110 ; ASCII for 'n' character.
+g_CHAR                  equ 103 ; ASCII for 'g' character.
+W_CHAR                  equ 87  ; ASCII for 'W' character.
 
 section .bss
 
@@ -89,9 +99,44 @@ check_plus_sign:
 
 check_minus_sign:
   cmp     rdx, MINUS_SIGN
-  jne     keep_parsing
+  jne     check_and_sign
   pop     r8
   neg     r8
+  push    r8
+  jmp     parsing_character_finished
+
+check_and_sign:
+  cmp     rdx, AND_SIGN
+  jne     check_or_sign
+  pop     r8
+  pop     r9
+  and     r8, r9
+  push    r8
+  jmp     parsing_character_finished
+
+check_or_sign:
+  cmp     rdx, OR_SIGN
+  jne     check_xor_sign
+  pop     r8
+  pop     r9
+  or      r8, r9
+  push    r8
+  jmp     parsing_character_finished
+
+check_xor_sign:
+  cmp     rdx, XOR_SIGN
+  jne     check_not_sign
+  pop     r8
+  pop     r9
+  xor     r8, r9
+  push    r8
+  jmp     parsing_character_finished
+
+check_not_sign:
+  cmp     rdx, NOT_SIGN
+  jne     keep_parsing
+  pop     r8
+  not     r8
   push    r8
   jmp     parsing_character_finished
 
@@ -100,7 +145,7 @@ keep_parsing:
 parsing_character_finished:
   inc     rsi ; Where to look for next character.
   pop     rax
-  lea     r8, [top_stack_number]
+  mov     r8, top_stack_number
   mov     [r8+rdi*8], rax ; Update stack_top for this notec.
   push    rax
   jmp     read_data ; Continue reading input.
