@@ -39,6 +39,7 @@ section .text
 
 align 8
 notec:
+  pop     r14 ; Saving return address.
   xor     rcx, rcx ; Number writing mode off.
 
 read_data:
@@ -204,4 +205,5 @@ parsing_character_finished:
 
 traversal_finished:
   pop     rax ; Obtain the returning value.
+  push    r14
   ret
