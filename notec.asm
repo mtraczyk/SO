@@ -40,7 +40,7 @@ align 8
 %ifdef N
 which_notec_to_wait_for resq N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
-is_the_notec_working    resq N ; 0 if notec's instance is off, 1 otherwise.
+is_the_notec_working    resb N ; 0 if notec's instance is off, 1 otherwise.
 %endif
 
 section .text
@@ -52,7 +52,7 @@ notec:
   push    r14
   mov     r8, is_the_notec_working
   mov     rax, NOTEC_AT_WORK
-  mov     [r8+rdi*8], rax
+  mov     [r8+rdi], rax
   xor     rcx, rcx ; Number writing mode off.
 
 read_data:
@@ -239,13 +239,14 @@ check_W_char:
 
 is_notec_with_bigger_number_on:
   mov     r8, is_the_notec_working
-  mov     al, [r8+rax*8]
+  mov     al, [r8+rax]
   cmp     al, NOTEC_AT_WORK
   jne     is_notec_with_bigger_number_on
 
 is_notec_with_bigger_number_waiting_for_me:
   mov     r8, which_notec_to_wait_for
-  cmp     rdi, [r8+rax*8]
+  mov     r9, [r8+rax*8]
+  cmp     rdi, r9
   jne     is_notec_with_bigger_number_waiting_for_me
 
 exchange_stack_top_elements:
