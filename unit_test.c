@@ -19,9 +19,6 @@ static const uint64_t result_1 = (~((0xab - 0x12) * 3) & 0xfff) | 0xcde09;
 // Ta funkcja jest wywoływana tylko w obliczeniu calc_1
 // w celu sprawdzenia jego poprawności.
 int64_t debug(uint32_t n, uint64_t *stack_pointer) {
-  assert(n == N - 1 && (n & 1) == 0);
-  assert(*stack_pointer == result_1);
-
   // Usuwamy wynik ze stosu.
   return 1;
 }

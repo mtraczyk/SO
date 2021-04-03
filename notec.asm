@@ -27,12 +27,15 @@ g_CHAR                  equ 103 ; ASCII for 'g' character.
 W_CHAR                  equ 87  ; ASCII for 'W' character.
 NOTEC_AT_WORK           equ 1   ; Notec's instance is on.
 
+; which_notec_to_wait_for equals -1 after a swap is done.
+EXCHANGE_DONE           equ -1
+
 section .bss
 
 align 8
 
 %ifdef N
-which_notec_to_wait_for resd N ; Used when W appears.
+which_notec_to_wait_for resq N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
 is_the_notec_working    resb N ; 0 if notec's instance is off, 1 otherwise.
 %endif
@@ -46,7 +49,7 @@ notec:
   push    r14
   mov     r8, is_the_notec_working
   mov     rax, NOTEC_AT_WORK
-  mov     [r8+rdi*8], rax
+  mov     [r8+rdi], rax
   xor     rcx, rcx ; Number writing mode off.
 
 read_data:
@@ -202,15 +205,47 @@ check_g_char:
 
 check_W_char:
   pop     rax ; Notec instance to wait for.
-  cmp     rdi, rsi
+  mov     r8, which_notec_to_wait_for
+  mov     [r8+rdi*8], rax
+  pop     r9
+  mov     r8, top_stack_number
+  mov     [r8+rdi*8], r9
+  cmp     rdi, rax
   je      parsing_character_finished ; Undefined operation.
   jg      wait_for_notec_with_smaller_number
 
-notec_with_smaller_number:
+is_notec_with_bigger_number_on:
+  mov     r8, is_the_notec_working
+  mov     al, [r8+rax]
+  cmp     al, NOTEC_AT_WORK
+  jne     is_notec_with_bigger_number_on
 
+is_notec_with_bigger_number_waiting_for_me:
+  mov     r8, which_notec_to_wait_for
+  cmp     rdi, [r8+rax*8]
+  jne     is_notec_with_bigger_number_waiting_for_me
+
+exchange_stack_top_elements:
+  mov     r8, top_stack_number
+  mov     r10, [r8+rdi*8]
+  mov     r11, [r8+rax*8]
+  mov     [r8+rax*8], r10
+  mov     [r8+rdi*8], r11
+  push    r11
+  mov     r8, which_notec_to_wait_for
+  mov     r9, EXCHANGE_DONE
+  mov     [r8+rax*8], r9
+  jmp     parsing_character_finished
 
 wait_for_notec_with_smaller_number:
+  mov     r8, which_notec_to_wait_for
+  mov     rax, [r8+rdi*8]
+  cmp     rax, EXCHANGE_DONE
+  jne     wait_for_notec_with_smaller_number
 
+  mov     r8, top_stack_number
+  mov     rax, [r8+rdi*8]
+  push    rax
 
 parsing_character_finished:
   inc     rsi ; Where to look for next character.
