@@ -182,7 +182,14 @@ check_n_char:
 check_g_char:
   cmp     rdx, g_CHAR
   jne     keep_parsing
-
+  mov     r12, rdi
+  mov     r13, rsi
+  mov     rsi, rsp
+  call    debug
+  lea     rax, [rax*8] ; Get number of bytes.
+  add     rsp, rax
+  mov     rdi, r12
+  mov     rsi, r13
   jmp     parsing_character_finished
 
 keep_parsing:
