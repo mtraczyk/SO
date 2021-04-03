@@ -27,7 +27,7 @@ int64_t debug(uint32_t n, uint64_t *stack_pointer) {
 }
 
 int main () {
-  char *napis = "121AB\0";
+  char *napis = "121ABg\0";
   int64_t res = notec(0, napis);
 
   printf("%ld\n", res);

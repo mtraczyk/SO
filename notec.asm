@@ -25,14 +25,16 @@ N_CHAR                  equ 78  ; ASCII for 'N' character.
 n_CHAR                  equ 110 ; ASCII for 'n' character.
 g_CHAR                  equ 103 ; ASCII for 'g' character.
 W_CHAR                  equ 87  ; ASCII for 'W' character.
+NOTEC_AT_WORK           equ 1   ; Notec's instance is on.
 
 section .bss
 
 align 8
 
 %ifdef N
-which_notec_to_wait_for resq N ; Used when W appears.
+which_notec_to_wait_for resd N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
+is_the_notec_working    resb N ; 0 if notec's instance is off, 1 otherwise.
 %endif
 
 section .text
@@ -42,6 +44,9 @@ notec:
   pop     r14 ; Saving return address.
   mov     rbp, rsp ; Saving frame.
   push    r14
+  mov     r8, is_the_notec_working
+  mov     rax, NOTEC_AT_WORK
+  mov     [r8+rdi*8], NOTEC_AT_WORK
   xor     rcx, rcx ; Number writing mode off.
 
 read_data:
@@ -184,7 +189,7 @@ check_n_char:
 
 check_g_char:
   cmp     rdx, g_CHAR
-  jne     keep_parsing
+  jne     check_W_char
   mov     r12, rdi
   mov     r13, rsi
   mov     rsi, rsp
@@ -195,7 +200,17 @@ check_g_char:
   mov     rsi, r13
   jmp     parsing_character_finished
 
-keep_parsing:
+check_W_char:
+  pop     rax ; Notec instance to wait for.
+  cmp     rdi, rsi
+  je      parsing_character_finished ; Undefined operation.
+  jg      wait_for_notec_with_smaller_number
+
+notec_with_smaller_number:
+
+
+wait_for_notec_with_smaller_number:
+
 
 parsing_character_finished:
   inc     rsi ; Where to look for next character.
@@ -207,6 +222,6 @@ parsing_character_finished:
 
 traversal_finished:
   pop     rax ; Obtain the returning value.
-  mov     rsp, rbp
-  push    r14
+  mov     rsp, rbp ; Move to the correct frame.
+  push    r14 ; Push return address.
   ret
