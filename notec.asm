@@ -46,7 +46,7 @@ notec:
   push    r14
   mov     r8, is_the_notec_working
   mov     rax, NOTEC_AT_WORK
-  mov     [r8+rdi*8], NOTEC_AT_WORK
+  mov     [r8+rdi*8], rax
   xor     rcx, rcx ; Number writing mode off.
 
 read_data:
