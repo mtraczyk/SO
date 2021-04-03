@@ -8,6 +8,8 @@ ZERO_CHAR               equ 48  ; ASCII for '0' character.
 NINE_CHAR               equ 57  ; ASCII for '9' character.
 A_CHAR                  equ 65  ; ASCII for 'A' character.
 F_CHAR                  equ 70  ; ASCII for 'F' character.
+a_CHAR                  equ 97  ; ASCII for 'a' character.
+f_CHAR                  equ 102 ; ASCII for 'f' character.
 DECIMAL_BASIS           equ 10  ; Decimal basis.
 WRI_NUMBER_MODE_ON      equ 1   ; Writing number mode on.
 WRI_NUMBER_MODE_OFF     equ 0   ; Writing number mode off.
@@ -69,12 +71,23 @@ check_for_0_to_9_digit:
 
 check_for_A_to_F_char:
   cmp     rdx, A_CHAR
-  jl      check_equal_sign ; Not an A-F char.
+  jl      check_for_a_to_f_char ; Not an A-F char.
   cmp     rdx, F_CHAR
-  jg      check_equal_sign ; Not an A-F char.
+  jg      check_for_a_to_f_char ; Not an A-F char.
 
   ; It is an A-F char. Conversion into a 10-15 number.
   sub     rdx, A_CHAR
+  add     rdx, DECIMAL_BASIS
+  jmp     parse_number
+
+check_for_a_to_f_char:
+  cmp     rdx, a_CHAR
+  jl      check_equal_sign ; Not an a-f char.
+  cmp     rdx, f_CHAR
+  jg      check_equal_sign ; Not an a-f char.
+
+  ; It is an a-f char. Conversion into a 10-15 number.
+  sub     rdx, a_CHAR
   add     rdx, DECIMAL_BASIS
 
 parse_number:
