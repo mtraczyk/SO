@@ -255,6 +255,7 @@ exchange_stack_top_elements:
   mov     [r8+rax*8], r10
   mov     [r8+rdi*8], r11
   push    r11
+nic2:
   mov     r8, which_notec_to_wait_for
   mov     r9, EXCHANGE_DONE
   mov     [r8+rax*8], r9
@@ -265,7 +266,6 @@ wait_for_notec_with_smaller_number:
   mov     rax, [r8+rdi*8]
   cmp     rax, EXCHANGE_DONE
   jne     wait_for_notec_with_smaller_number
-
   mov     r8, top_stack_number
   mov     rax, [r8+rdi*8]
   push    rax
@@ -276,6 +276,7 @@ parsing_character_finished:
   mov     r8, top_stack_number
   mov     [r8+rdi*8], rax ; Update stack_top for this notec.
   push    rax
+nic:
   jmp     read_data ; Continue reading input.
 
 traversal_finished:

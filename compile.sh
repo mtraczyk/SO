@@ -1,6 +1,6 @@
 #!/bin/bash
 
-N=1;
+N=2;
 
 gcc -DN=$N -c -Wall -Wextra -O2 -std=c11 -o example.o example.c
 nasm -DN=$N -f elf64 -w+all -w+error -o notec.o notec.asm
