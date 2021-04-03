@@ -37,11 +37,9 @@ section .bss
 
 align 8
 
-%ifdef N
 which_notec_to_wait_for resq N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
 is_the_notec_working    resb N ; 0 if notec's instance is off, 1 otherwise.
-%endif
 
 section .text
 
@@ -203,10 +201,8 @@ check_X_char:
 check_N_char:
   cmp     rdx, N_CHAR
   jne     check_n_char
-  %ifdef N
   mov     rax, N
   push    rax
-  %endif
   jmp     parsing_character_finished
 
 check_n_char:
