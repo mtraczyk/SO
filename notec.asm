@@ -21,6 +21,7 @@ NOT_SIGN                equ 126 ; ASCII for '~'.
 Z_CHAR                  equ 90  ; ASCII for 'Z' character.
 Y_CHAR                  equ 89  ; ASCII for 'Y' character.
 X_CHAR                  equ 88  ; ASCII for 'X' character.
+N_CHAR                  equ 78  ; ASCII for 'N' character.
 n_CHAR                  equ 110 ; ASCII for 'n' character.
 g_CHAR                  equ 103 ; ASCII for 'g' character.
 W_CHAR                  equ 87  ; ASCII for 'W' character.
@@ -165,11 +166,23 @@ check_X_char:
 
 check_N_char:
   cmp     rdx, N_CHAR
-  jne     keep_parsing
+  jne     check_n_char
   %ifdef N
   mov     rax, N
   push    rax
   %endif
+  jmp     parsing_character_finished
+
+check_n_char:
+  cmp     rdx, n_CHAR
+  jne     check_g_char
+  push    rdi
+  jmp     parsing_character_finished
+
+check_g_char:
+  cmp     rdx, g_CHAR
+  jne     keep_parsing
+
   jmp     parsing_character_finished
 
 keep_parsing:
