@@ -40,6 +40,7 @@ section .text
 align 8
 notec:
   pop     r14 ; Saving return address.
+  push    r14
   xor     rcx, rcx ; Number writing mode off.
 
 read_data:
