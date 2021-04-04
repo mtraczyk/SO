@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdint.h>
 
 // Interfejs między C a Asemblerem
@@ -29,7 +30,7 @@ void *thread_routine(void *data) {
   uint32_t n = *(uint32_t *) data;
   const char *calc;
 
-  printf("%d %d\n", n, pthread_self());
+  printf("%d %ld\n", n, pthread_self());
 
   if (n == N - 1 && (n & 1) == 0)
     calc = calc_1; // To obliczenie jest uruchamiane co najwyżej w jednym wątku.
@@ -43,7 +44,7 @@ void *thread_routine(void *data) {
   if (n == N - 1 && (n & 1) == 0)
     assert(result == 6);
   else {
-    printf("%d %d\n", n, pthread_self());
+    printf("%d %ld\n", n, pthread_self());
     assert(result == (n ^ 1));
   }
 

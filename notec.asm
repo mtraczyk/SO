@@ -50,8 +50,10 @@ r15_copy                resq N ; Used to store copy of r15 register.
 section .text
 
 align 8
+
+
+notec:
 ; Saving registers in order to suffice ABI.
-save_registers:
   mov     r8, rbx_copy
   mov     [r8+rdi*8], rbx
   mov     r8, rbp_copy
@@ -63,10 +65,9 @@ save_registers:
   mov     r8, r14_copy
   mov     [r8+rdi*8], r14
   mov     r8, r15_copy
-  mov     [r8+rdi*8], r15
+  mov     [r8+rdi*8], r15qu
   ; rsp will be saved in rbp
 
-notec:
   pop     r15 ; Saving return address.
   mov     rbp, rsp ; Saving frame.
   mov     r13, rdi ; Saving rdi to ABI protected register.
