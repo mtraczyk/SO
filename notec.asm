@@ -306,17 +306,18 @@ traversal_finished:
   push    r15 ; Push return address.
 
 recover_registers:
+  mov     r9, r13
   mov     r8, rbx_copy
-  mov     rbx, [r8+rdi*8]
+  mov     rbx, [r8+r9*8]
   mov     r8, rbp_copy
-  mov     rbp, [r8+rdi*8]
+  mov     rbp, [r8+r9*8]
   mov     r8, r12_copy
-  mov     r12, [r8+rdi*8]
+  mov     r12, [r8+r9*8]
   mov     r8, r13_copy
-  mov     r13, [r8+rdi*8]
+  mov     r13, [r8+r9*8]
   mov     r8, r14_copy
-  mov     r14, [r8+rdi*8]
+  mov     r14, [r8+r9*8]
   mov     r8, r15_copy
-  mov     r15, [r8+rdi*8]
+  mov     r15, [r8+r9*8]
 
   ret
