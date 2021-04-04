@@ -29,6 +29,7 @@ n_CHAR                  equ 110 ; ASCII for 'n' character.
 g_CHAR                  equ 103 ; ASCII for 'g' character.
 W_CHAR                  equ 87  ; ASCII for 'W' character.
 NOTEC_AT_WORK           equ 1   ; Notec's instance is on.
+ALIGNMENT_CONST         equ 16  ; ABI stack before call alignment constant.
 
 ; which_notec_to_wait_for equals -1 after a swap is done.
 EXCHANGE_DONE           equ -1
@@ -50,8 +51,6 @@ r15_copy                resq N ; Used to store copy of r15 register.
 section .text
 
 align 8
-
-
 notec:
 ; Saving registers in order to suffice ABI.
   mov     r8, rbx_copy
@@ -65,7 +64,7 @@ notec:
   mov     r8, r14_copy
   mov     [r8+rdi*8], r14
   mov     r8, r15_copy
-  mov     [r8+rdi*8], r15qu
+  mov     [r8+rdi*8], r15
   ; rsp will be saved in rbp
 
   pop     r15 ; Saving return address.
@@ -243,6 +242,8 @@ check_g_char:
   jne     check_W_char
   mov     rdi, r13
   mov     rsi, rsp
+  mov     rax, rsp
+  div     ALIGNMENT_CONST
   call    debug
   lea     rax, [rax*8] ; Get number of bytes.
   add     rsp, rax
