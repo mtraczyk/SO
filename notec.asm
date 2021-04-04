@@ -40,23 +40,49 @@ align 8
 which_notec_to_wait_for resq N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
 is_the_notec_working    resq N ; 0 if notec's instance is off, 1 otherwise.
+rbx_copy                resq N ; Used to store copy of rbx register.
+rbp_copy                resq N ; Used to store copy of rbp register.
+r12_copy                resq N ; Used to store copy of r12 register.
+r13_copy                resq N ; Used to store copy of r13 register.
+r14_copy                resq N ; Used to store copy of r14 register.
+r15_copy                resq N ; Used to store copy of r15 register.
 
 section .text
 
 align 8
+; Saving registers in order to suffice ABI.
+save_registers:
+  mov     r8, rbx_copy
+  mov     [r8+rdi*8], rbx
+  mov     r8, rbp_copy
+  mov     [r8+rdi*8], rbp
+  mov     r8, r12_copy
+  mov     [r8+rdi*8], r12
+  mov     r8, r13_copy
+  mov     [r8+rdi*8], r13
+  mov     r8, r14_copy
+  mov     [r8+rdi*8], r14
+  mov     r8, r15_copy
+  mov     [r8+rdi*8], r15
+  ; rsp will be saved in rbp
+
 notec:
-  pop     r14 ; Saving return address.
+  pop     r15 ; Saving return address.
   mov     rbp, rsp ; Saving frame.
-  push    r14
+  mov     r13, rdi ; Saving rdi to ABI protected register.
+  mov     r14, rsi ; Saving rsi to ABI protected register.
+
+  ; Mechanism to prevent mistakes considering 'w' operation with notec number 0.
   mov     r8, which_notec_to_wait_for
-  mov     [r8+rdi*8], rdi
+  mov     [r8+r13*8], r13
+  
   mov     r8, is_the_notec_working
   mov     rax, NOTEC_AT_WORK
-  mov     [r8+rdi*8], rax
-  xor     rcx, rcx ; Number writing mode off.
+  mov     [r8+r13*8], rax ; Notec nubmer r13 was started.
+  xor     rbx, rbx ; Number writing mode off.
 
 read_data:
-  movzx   rdx, byte [rsi] ; Get one ASCIIZ character.
+  movzx   rdx, byte [r14] ; Get one ASCIIZ character.
   test    rdx, rdx ; Check for \0.
   je      traversal_finished ; No more characters to read.
 
@@ -92,7 +118,7 @@ check_for_a_to_f_char:
   add     rdx, DECIMAL_BASIS
 
 parse_number:
-  cmp     rcx, WRI_NUMBER_MODE_ON
+  cmp     rbx, WRI_NUMBER_MODE_ON
   jne     add_new_number_to_stack ; A new number has to be added onto the stack.
 
   ; Writing mode is on, adjust the number on the top of the stack.
@@ -105,11 +131,11 @@ parse_number:
 
 add_new_number_to_stack:
   push    rdx ; Pushing new number onto the stack.
-  mov     rcx, WRI_NUMBER_MODE_ON ; Turn on writing number mode.
+  mov     rbx, WRI_NUMBER_MODE_ON ; Turn on writing number mode.
   jmp     parsing_character_finished
 
 check_equal_sign:
-  mov     rcx, WRI_NUMBER_MODE_OFF ; Turn off writing number mode.
+  mov     rbx, WRI_NUMBER_MODE_OFF ; Turn off writing number mode.
   cmp     rdx, EQUAL_SIGN
   jne     check_plus_sign
   jmp     parsing_character_finished
@@ -185,7 +211,7 @@ check_Y_char:
   cmp     rdx, Y_CHAR
   jne     check_X_char
   mov     r8, top_stack_number
-  mov     r9, [r8+rdi*8]
+  mov     r9, [r8+r13*8]
   push    r9
   jmp     parsing_character_finished
 
@@ -208,30 +234,27 @@ check_N_char:
 check_n_char:
   cmp     rdx, n_CHAR
   jne     check_g_char
-  push    rdi
+  push    r13
   jmp     parsing_character_finished
 
 check_g_char:
   cmp     rdx, g_CHAR
   jne     check_W_char
-  mov     r12, rdi
-  mov     r13, rsi
+  mov     rdi, r13
   mov     rsi, rsp
   call    debug
   lea     rax, [rax*8] ; Get number of bytes.
   add     rsp, rax
-  mov     rdi, r12
-  mov     rsi, r13
   jmp     parsing_character_finished
 
 check_W_char:
   pop     rax ; Notec instance to wait for.
   pop     r9
   mov     r8, top_stack_number
-  mov     [r8+rdi*8], r9
+  mov     [r8+r13*8], r9
   mov     r8, which_notec_to_wait_for
-  mov     [r8+rdi*8], rax
-  cmp     rdi, rax
+  mov     [r8+r13*8], rax
+  cmp     r13, rax
   je      parsing_character_finished ; Undefined operation.
   jg      wait_for_notec_with_smaller_number
 
@@ -245,15 +268,15 @@ is_notec_with_bigger_number_on:
 is_notec_with_bigger_number_waiting_for_me:
   mov     r8, which_notec_to_wait_for
   mov     r9, [r8+rax*8]
-  cmp     rdi, r9
+  cmp     r13, r9
   jne     is_notec_with_bigger_number_waiting_for_me
 
 exchange_stack_top_elements:
   mov     r8, top_stack_number
-  mov     r10, [r8+rdi*8]
+  mov     r10, [r8+r13*8]
   mov     r11, [r8+rax*8]
   mov     [r8+rax*8], r10
-  mov     [r8+rdi*8], r11
+  mov     [r8+r13*8], r11
   push    r11
   mov     r8, which_notec_to_wait_for
   mov     r9, EXCHANGE_DONE
@@ -262,23 +285,38 @@ exchange_stack_top_elements:
 
 wait_for_notec_with_smaller_number:
   mov     r8, which_notec_to_wait_for
-  mov     rax, [r8+rdi*8]
+  mov     rax, [r8+r13*8]
   cmp     rax, EXCHANGE_DONE
   jne     wait_for_notec_with_smaller_number
   mov     r8, top_stack_number
-  mov     rax, [r8+rdi*8]
+  mov     rax, [r8+r13*8]
   push    rax
 
 parsing_character_finished:
-  inc     rsi ; Where to look for next character.
+  inc     r14 ; Where to look for next character.
   pop     rax
   mov     r8, top_stack_number
-  mov     [r8+rdi*8], rax ; Update stack_top for this notec.
+  mov     [r8+r13*8], rax ; Update stack_top for this notec.
   push    rax
   jmp     read_data ; Continue reading input.
 
 traversal_finished:
   pop     rax ; Obtain the returning value.
   mov     rsp, rbp ; Move to the correct frame.
-  push    r14 ; Push return address.
+  push    r15 ; Push return address.
+
+recover_registers:
+  mov     r8, rbx_copy
+  mov     rbx, [r8+rdi*8]
+  mov     r8, rbp_copy
+  mov     rbp, [r8+rdi*8]
+  mov     r8, r12_copy
+  mov     r12, [r8+rdi*8]
+  mov     r8, r13_copy
+  mov     r13, [r8+rdi*8]
+  mov     r8, r14_copy
+  mov     r14, [r8+rdi*8]
+  mov     r8, r15_copy
+  mov     r15, [r8+rdi*8]
+
   ret
