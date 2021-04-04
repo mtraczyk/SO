@@ -245,6 +245,7 @@ check_g_char:
   mov     rdi, r13
   mov     rsi, rsp
   mov     rax, rsi
+  xor     rdx, rdx
   mov     r9, ALIGNMENT_CONST
   div     r9
   cmp     rdx, ZERO
