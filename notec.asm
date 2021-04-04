@@ -250,7 +250,7 @@ check_g_char:
   div     r9
   cmp     rdx, ZERO
   je      call_debug
-  add     rsi, STACK_CHUNK
+  sub     rsi, STACK_CHUNK
 
 call_debug:
   call    debug
