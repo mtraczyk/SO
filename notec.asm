@@ -244,18 +244,22 @@ check_g_char:
   cmp     rdx, g_CHAR
   jne     check_W_char
   mov     rdi, r13
+  mov     r12, rsp
   mov     rsi, rsp
   mov     rax, rsi
   xor     rdx, rdx
   mov     r9, ALIGNMENT_CONST
   div     r9
+  sub     rsi, STACK_CHUNK
   cmp     rdx, ZERO
   je      call_debug
   sub     rsi, STACK_CHUNK
+  sub     rsp, STACK_CHUNK
 
 call_debug:
   call    debug
   lea     rax, [rax*8] ; Get number of bytes.
+  mov     rsp, r12
   add     rsp, rax
   jmp     parsing_character_finished
 
