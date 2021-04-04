@@ -137,65 +137,73 @@ add_new_number_to_stack:
   mov     rbx, WRI_NUMBER_MODE_ON ; Turn on writing number mode.
   jmp     parsing_character_finished
 
+; Turns off writing number mode off.
 check_equal_sign:
   mov     rbx, WRI_NUMBER_MODE_OFF ; Turn off writing number mode.
   cmp     rdx, EQUAL_SIGN
   jne     check_plus_sign
   jmp     parsing_character_finished
 
+; Sums two top stack elements.
 check_plus_sign:
   cmp     rdx, PLUS_SIGN
   jne     check_multiply_sign
-  pop     r8
-  pop     r9
+  pop     r8 ; First argument.
+  pop     r9 ; Second argument.
   add     r8, r9
-  push    r8
+  push    r8 ; Operation result.
   jmp     parsing_character_finished
 
+; Multiplies two top stack elements.
 check_multiply_sign:
   cmp     rdx, MULTIPLY_SIGN
   jne     check_minus_sign
-  pop     rax
-  pop     r9
+  pop     rax ; First argument.
+  pop     r9 ; Second argument.
   mul     r9
-  push    rax
+  push    rax ; Operation result.
   jmp     parsing_character_finished
 
+; Arithmetically negates the top stack element.
 check_minus_sign:
   cmp     rdx, MINUS_SIGN
   jne     check_and_sign
-  pop     r8
+  pop     r8 ; Argument.
   neg     r8
-  push    r8
+  push    r8 ; Result of arithmetic negation.
   jmp     parsing_character_finished
 
+; Bitwise and of two top stack elements.
 check_and_sign:
   cmp     rdx, AND_SIGN
   jne     check_or_sign
-  pop     r8
-  pop     r9
+  pop     r8 ; First argument.
+  pop     r9 ; Second argument.
   and     r8, r9
-  push    r8
+  push    r8 ; Operation result.
   jmp     parsing_character_finished
 
+; Bitwise or of two top stack elements.
 check_or_sign:
   cmp     rdx, OR_SIGN
   jne     check_xor_sign
-  pop     r8
-  pop     r9
+  pop     r8 ; First argument.
+  pop     r9 ; Second argument.
   or      r8, r9
-  push    r8
+  push    r8 ; Operation result.
   jmp     parsing_character_finished
 
+; Bitwise xor of two top stack elements.
 check_xor_sign:
   cmp     rdx, XOR_SIGN
   jne     check_not_sign
-  pop     r8
-  pop     r9
+  pop     r8 ; First argument.
+  pop     r9 ; Second argument.
   xor     r8, r9
-  push    r8
+  push    r8 ; Operation result.
   jmp     parsing_character_finished
 
+; Bitwise not of the top stack element.
 check_not_sign:
   cmp     rdx, NOT_SIGN
   jne     check_Z_char
@@ -204,74 +212,88 @@ check_not_sign:
   push    r8
   jmp     parsing_character_finished
 
+; Pops top element from the stack.
 check_Z_char:
   cmp     rdx, Z_CHAR
   jne     check_Y_char
   pop     r8
   jmp     parsing_character_finished
 
+; Pushes copy of the top element onto the stack.
 check_Y_char:
   cmp     rdx, Y_CHAR
   jne     check_X_char
   mov     r8, top_stack_number
-  mov     r9, [r8+r13*8]
+  mov     r9, [r8+r13*8] ; Acquire top stack element.
   push    r9
   jmp     parsing_character_finished
 
+; Swaps two top stack elements.
 check_X_char:
   cmp     rdx, X_CHAR
   jne     check_N_char
-  pop     r8
-  pop     r9
+  pop     r8 ; First argument.
+  pop     r9 ; Second argument.
+
+  ; Perform swap.
   push    r8
   push    r9
   jmp     parsing_character_finished
 
+; Pushes compilation parameter N onto the stack.
 check_N_char:
   cmp     rdx, N_CHAR
   jne     check_n_char
-  mov     rax, N
+  mov     rax, N ; N is a compilation parameter.
   push    rax
   jmp     parsing_character_finished
 
+; Pushes instance number of a notec onto the stack.
 check_n_char:
   cmp     rdx, n_CHAR
   jne     check_g_char
-  push    r13
+  push    r13 ; Instance number is stored in r13.
   jmp     parsing_character_finished
 
+; Calls extern debug function.
 check_g_char:
   cmp     rdx, g_CHAR
   jne     check_W_char
-  mov     rdi, r13
-  mov     r12, rsp
-  mov     rsi, rsp
-  mov     rax, rsi
+  mov     rdi, r13 ; First argument of debug function.
+  mov     r12, rsp ; Save stack pointer in an ABI protected register.
+  mov     rsi, rsp ; Second argument of debug function.
+  mov     rax, rsi ; Copy of rsi/rsp for division.
   xor     rdx, rdx
   mov     r9, ALIGNMENT_CONST
   div     r9
-  cmp     rdx, ZERO
+  cmp     rdx, ZERO ; Check whether an alignment is needed.
   je      call_debug
-  sub     rsp, STACK_CHUNK
+  sub     rsp, STACK_CHUNK ; Aligning stack in order to suffice ABI.
 
 call_debug:
   call    debug
   lea     rax, [rax*8] ; Get number of bytes.
-  mov     rsp, r12
-  add     rsp, rax
+  mov     rsp, r12 ; Get the pre-debug stack frame.
+  add     rsp, rax ; Adjust frame according to the result of a debug call.
   jmp     parsing_character_finished
 
+; Synchronization operation.
 check_W_char:
   pop     rax ; Notec instance to wait for.
-  pop     r9
+  pop     r9 ; Get number to swap.
   mov     r8, top_stack_number
-  mov     [r8+r13*8], r9
+  mov     [r8+r13*8], r9 ; Now r9 is at the top of the stack.
   mov     r8, which_notec_to_wait_for
-  mov     [r8+r13*8], rax
+  mov     [r8+r13*8], rax ; Notec is waiting for notec with rax number.
   cmp     r13, rax
   je      parsing_character_finished ; Undefined operation.
-  jg      wait_for_notec_with_smaller_number
+  jg      wait_for_notec_with_smaller_number ; Bigger notec.
 
+; In order to synchronize only mov atomicity is used.
+; Bigger notec means an instance with bigger number.
+
+; This is performed only by smaller notec. Checks whether notec with
+; bigger number was even called.
 is_notec_with_bigger_number_on:
   mov     r8, is_the_notec_working
   xor     r9, r9
@@ -279,29 +301,41 @@ is_notec_with_bigger_number_on:
   cmp     r9, NOTEC_AT_WORK
   jne     is_notec_with_bigger_number_on
 
+; Waiting for bigger notec to finally swap elements.
 is_notec_with_bigger_number_waiting_for_me:
   mov     r8, which_notec_to_wait_for
   mov     r9, [r8+rax*8]
   cmp     r13, r9
   jne     is_notec_with_bigger_number_waiting_for_me
 
+; The swap can be performed. It is performed by smaller notec.
 exchange_stack_top_elements:
   mov     r8, top_stack_number
-  mov     r10, [r8+r13*8]
-  mov     r11, [r8+rax*8]
+
+  ; Get top elements.
+  mov     r10, [r8+r13*8] ; Smaller notec's top element.
+  mov     r11, [r8+rax*8] ; Bigger notec's top element.
+
+  ; Swap top elements.
   mov     [r8+rax*8], r10
   mov     [r8+r13*8], r11
-  push    r11
+
+  push    r11 ; Adjust top stack number of smaller notec.
+
+    ; Signalizing the bigger notec that the swap had been performed.
   mov     r8, which_notec_to_wait_for
   mov     r9, EXCHANGE_DONE
   mov     [r8+rax*8], r9
   jmp     parsing_character_finished
 
+; Wait performed by bigger notec.
 wait_for_notec_with_smaller_number:
   mov     r8, which_notec_to_wait_for
   mov     rax, [r8+r13*8]
-  cmp     rax, EXCHANGE_DONE
+  cmp     rax, EXCHANGE_DONE ; Checking whether the swap has been performed.
   jne     wait_for_notec_with_smaller_number
+
+  ; Adjust stack top of bigger notec.
   mov     r8, top_stack_number
   mov     rax, [r8+r13*8]
   push    rax
@@ -319,6 +353,7 @@ traversal_finished:
   mov     rsp, rbp ; Move to the correct frame.
   push    r15 ; Push return address.
 
+; Recovering registers in order to suffice ABI.
 recover_registers:
   mov     r9, r13
   mov     r8, rbx_copy
