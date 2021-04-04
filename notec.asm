@@ -4,6 +4,8 @@ global notec
 section .data
 
 ; Constants.
+ZERO                    equ 0
+STACK_CHUNK             equ 8   ; In 64 bit mode, stack's chunk is 8 bytes.
 ZERO_CHAR               equ 48  ; ASCII for '0' character.
 NINE_CHAR               equ 57  ; ASCII for '9' character.
 A_CHAR                  equ 65  ; ASCII for 'A' character.
@@ -242,8 +244,14 @@ check_g_char:
   jne     check_W_char
   mov     rdi, r13
   mov     rsi, rsp
-  mov     rax, rsp
-  div     ALIGNMENT_CONST
+  mov     rax, rsi
+  mov     r9, ALIGNMENT_CONST
+  div     r9
+  cmp     rdx, ZERO
+  je      call_debug
+  add     rsi, STACK_CHUNK
+
+call_debug:
   call    debug
   lea     rax, [rax*8] ; Get number of bytes.
   add     rsp, rax
