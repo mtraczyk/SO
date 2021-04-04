@@ -25,9 +25,11 @@ int64_t debug(uint32_t n, uint64_t *stack_pointer) {
   return 1;
 }
 
-void* thread_routine(void *data) {
-  uint32_t n = *(uint32_t*)data;
+void *thread_routine(void *data) {
+  uint32_t n = *(uint32_t *) data;
   const char *calc;
+
+  printf("%d %d\n", n, pthread_self());
 
   if (n == N - 1 && (n & 1) == 0)
     calc = calc_1; // To obliczenie jest uruchamiane co najwyżej w jednym wątku.
@@ -40,19 +42,21 @@ void* thread_routine(void *data) {
 
   if (n == N - 1 && (n & 1) == 0)
     assert(result == 6);
-  else
+  else {
+    printf("%d %d\n", n, pthread_self());
     assert(result == (n ^ 1));
+  }
 
   return NULL;
 }
 
-int main () {
+int main() {
   pthread_t tid[N];
   uint32_t i, n[N];
 
   for (i = 0; i < N; ++i) {
     n[i] = i;
-    assert(0 == pthread_create(&tid[i], NULL, &thread_routine, (void*)&n[i]));
+    assert(0 == pthread_create(&tid[i], NULL, &thread_routine, (void *) &n[i]));
   }
 
   wait = 0;

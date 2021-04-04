@@ -68,7 +68,6 @@ save_registers:
 
 notec:
   pop     r15 ; Saving return address.
-  push    r15
   mov     rbp, rsp ; Saving frame.
   mov     r13, rdi ; Saving rdi to ABI protected register.
   mov     r14, rsi ; Saving rsi to ABI protected register.
