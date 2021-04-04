@@ -250,10 +250,8 @@ check_g_char:
   xor     rdx, rdx
   mov     r9, ALIGNMENT_CONST
   div     r9
-  sub     rsi, STACK_CHUNK
   cmp     rdx, ZERO
   je      call_debug
-  sub     rsi, STACK_CHUNK
   sub     rsp, STACK_CHUNK
 
 call_debug:
