@@ -1,7 +1,7 @@
 extern debug
 global notec
 
-section .data
+section .rodata
 
 ; Constants.
 ZERO                    equ 0
