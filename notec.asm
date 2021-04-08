@@ -43,35 +43,21 @@ align 8
 which_notec_to_wait_for resq N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
 is_the_notec_working    resq N ; 0 if notec's instance is off, 1 otherwise.
-rbx_copy                resq N ; Used to store copy of rbx register.
-rbp_copy                resq N ; Used to store copy of rbp register.
-r12_copy                resq N ; Used to store copy of r12 register.
-r13_copy                resq N ; Used to store copy of r13 register.
-r14_copy                resq N ; Used to store copy of r14 register.
-r15_copy                resq N ; Used to store copy of r15 register.
 
 section .text
 
 align 8
 notec:
 ; Saving registers in order to suffice ABI.
-  mov     r8, rbx_copy
-  mov     [r8+rdi*8], rbx
-  mov     r8, rbp_copy
-  mov     [r8+rdi*8], rbp
-  mov     r8, r12_copy
-  mov     [r8+rdi*8], r12
-  mov     r8, r13_copy
-  mov     [r8+rdi*8], r13
-  mov     r8, r14_copy
-  mov     [r8+rdi*8], r14
-  mov     r8, r15_copy
-  mov     [r8+rdi*8], r15
-  ; rsp will be saved in rbp
-
-  pop     r15 ; Saving return address.
-  mov     rbp, rsp ; Saving frame.
+  push    rbx
+  push    rbp
+  push    r12
+  push    r13
+  push    r14
   push    r15
+
+  ; rsp will be saved in rbp
+  mov     rbp, rsp ; Saving frame.
   mov     r13, rdi ; Saving rdi to ABI protected register.
   mov     r14, rsi ; Saving rsi to ABI protected register.
 
@@ -355,18 +341,12 @@ traversal_finished:
 
 ; Recovering registers in order to suffice ABI.
 recover_registers:
-  mov     r9, r13
-  mov     r8, rbx_copy
-  mov     rbx, [r8+r9*8]
-  mov     r8, rbp_copy
-  mov     rbp, [r8+r9*8]
-  mov     r8, r12_copy
-  mov     r12, [r8+r9*8]
-  mov     r8, r13_copy
-  mov     r13, [r8+r9*8]
-  mov     r8, r14_copy
-  mov     r14, [r8+r9*8]
-  mov     r8, r15_copy
-  mov     r15, [r8+r9*8]
+  mov     rsp, rbp ; Get the correct frame.
+  pop     r15
+  pop     r14
+  pop     r13
+  pop     r12
+  pop     rbp
+  pop     rbx
 
   ret
