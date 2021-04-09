@@ -54,7 +54,6 @@ notec:
   push    r12
   push    r13
   push    r14
-  push    r15
 
   ; rsp will be saved in rbp
   mov     rbp, rsp ; Saving frame.
@@ -71,40 +70,40 @@ notec:
   xor     rbx, rbx ; Number writing mode off.
 
 read_data:
-  movzx   rdx, byte [r14] ; Get one ASCIIZ character.
-  test    rdx, rdx ; Check for \0.
+  movzx   dl, byte [r14] ; Get one ASCIIZ character.
+  test    dl, dl ; Check for \0.
   je      traversal_finished ; No more characters to read.
 
 check_for_0_to_9_digit:
-  cmp     rdx, ZERO_CHAR
+  cmp     dl, ZERO_CHAR
   jl      check_for_A_to_F_char ; Not a 0-9 char.
-  cmp     rdx, NINE_CHAR
+  cmp     dl, NINE_CHAR
   jg      check_for_A_to_F_char ; Not a 0-9 char.
 
   ; It is a 0-9 char.
-  sub     rdx, ZERO_CHAR ; Conversion into a digit.
+  sub     dl, ZERO_CHAR ; Conversion into a digit.
   jmp     parse_number
 
 check_for_A_to_F_char:
-  cmp     rdx, A_CHAR
+  cmp     dl, A_CHAR
   jl      check_for_a_to_f_char ; Not an A-F char.
-  cmp     rdx, F_CHAR
+  cmp     dl, F_CHAR
   jg      check_for_a_to_f_char ; Not an A-F char.
 
   ; It is an A-F char. Conversion into a 10-15 number.
-  sub     rdx, A_CHAR
-  add     rdx, DECIMAL_BASIS
+  sub     dl, A_CHAR
+  add     dl, DECIMAL_BASIS
   jmp     parse_number
 
 check_for_a_to_f_char:
-  cmp     rdx, a_CHAR
+  cmp     dl, a_CHAR
   jl      check_equal_sign ; Not an a-f char.
-  cmp     rdx, f_CHAR
+  cmp     dl, f_CHAR
   jg      check_equal_sign ; Not an a-f char.
 
   ; It is an a-f char. Conversion into a 10-15 number.
-  sub     rdx, a_CHAR
-  add     rdx, DECIMAL_BASIS
+  sub     dl, a_CHAR
+  add     dl, DECIMAL_BASIS
 
 parse_number:
   cmp     rbx, WRI_NUMBER_MODE_ON
@@ -114,25 +113,25 @@ parse_number:
   pop     rax
   lea     rax, [rax*8]
   lea     rax, [rax*2]
-  add     rax, rdx
+  add     rax, dl
   push    rax
   jmp     parsing_character_finished
 
 add_new_number_to_stack:
-  push    rdx ; Pushing new number onto the stack.
+  push    dl ; Pushing new number onto the stack.
   mov     rbx, WRI_NUMBER_MODE_ON ; Turn on writing number mode.
   jmp     parsing_character_finished
 
 ; Turns off writing number mode off.
 check_equal_sign:
   mov     rbx, WRI_NUMBER_MODE_OFF ; Turn off writing number mode.
-  cmp     rdx, EQUAL_SIGN
+  cmp     dl, EQUAL_SIGN
   jne     check_plus_sign
   jmp     parsing_character_finished
 
 ; Sums two top stack elements.
 check_plus_sign:
-  cmp     rdx, PLUS_SIGN
+  cmp     dl, PLUS_SIGN
   jne     check_multiply_sign
   pop     r8 ; First argument.
   pop     r9 ; Second argument.
@@ -142,7 +141,7 @@ check_plus_sign:
 
 ; Multiplies two top stack elements.
 check_multiply_sign:
-  cmp     rdx, MULTIPLY_SIGN
+  cmp     dl, MULTIPLY_SIGN
   jne     check_minus_sign
   pop     rax ; First argument.
   pop     r9 ; Second argument.
@@ -152,7 +151,7 @@ check_multiply_sign:
 
 ; Arithmetically negates the top stack element.
 check_minus_sign:
-  cmp     rdx, MINUS_SIGN
+  cmp     dl, MINUS_SIGN
   jne     check_and_sign
   pop     r8 ; Argument.
   neg     r8
@@ -161,7 +160,7 @@ check_minus_sign:
 
 ; Bitwise and of two top stack elements.
 check_and_sign:
-  cmp     rdx, AND_SIGN
+  cmp     dl, AND_SIGN
   jne     check_or_sign
   pop     r8 ; First argument.
   pop     r9 ; Second argument.
@@ -171,7 +170,7 @@ check_and_sign:
 
 ; Bitwise or of two top stack elements.
 check_or_sign:
-  cmp     rdx, OR_SIGN
+  cmp     dl, OR_SIGN
   jne     check_xor_sign
   pop     r8 ; First argument.
   pop     r9 ; Second argument.
@@ -181,7 +180,7 @@ check_or_sign:
 
 ; Bitwise xor of two top stack elements.
 check_xor_sign:
-  cmp     rdx, XOR_SIGN
+  cmp     dl, XOR_SIGN
   jne     check_not_sign
   pop     r8 ; First argument.
   pop     r9 ; Second argument.
@@ -191,7 +190,7 @@ check_xor_sign:
 
 ; Bitwise not of the top stack element.
 check_not_sign:
-  cmp     rdx, NOT_SIGN
+  cmp     dl, NOT_SIGN
   jne     check_Z_char
   pop     r8
   not     r8
@@ -200,14 +199,14 @@ check_not_sign:
 
 ; Pops top element from the stack.
 check_Z_char:
-  cmp     rdx, Z_CHAR
+  cmp     dl, Z_CHAR
   jne     check_Y_char
   pop     r8
   jmp     parsing_character_finished
 
 ; Pushes copy of the top element onto the stack.
 check_Y_char:
-  cmp     rdx, Y_CHAR
+  cmp     dl, Y_CHAR
   jne     check_X_char
   mov     r8, top_stack_number
   mov     r9, [r8+r13*8] ; Acquire top stack element.
@@ -216,7 +215,7 @@ check_Y_char:
 
 ; Swaps two top stack elements.
 check_X_char:
-  cmp     rdx, X_CHAR
+  cmp     dl, X_CHAR
   jne     check_N_char
   pop     r8 ; First argument.
   pop     r9 ; Second argument.
@@ -228,7 +227,7 @@ check_X_char:
 
 ; Pushes compilation parameter N onto the stack.
 check_N_char:
-  cmp     rdx, N_CHAR
+  cmp     dl, N_CHAR
   jne     check_n_char
   mov     rax, N ; N is a compilation parameter.
   push    rax
@@ -236,14 +235,14 @@ check_N_char:
 
 ; Pushes instance number of a notec onto the stack.
 check_n_char:
-  cmp     rdx, n_CHAR
+  cmp     dl, n_CHAR
   jne     check_g_char
   push    r13 ; Instance number is stored in r13.
   jmp     parsing_character_finished
 
 ; Calls extern debug function.
 check_g_char:
-  cmp     rdx, g_CHAR
+  cmp     dl, g_CHAR
   jne     check_W_char
   mov     rdi, r13 ; First argument of debug function.
   mov     r12, rsp ; Save stack pointer in an ABI protected register.
@@ -252,7 +251,7 @@ check_g_char:
   xor     rdx, rdx
   mov     r9, ALIGNMENT_CONST
   div     r9
-  cmp     rdx, ZERO ; Check whether an alignment is needed.
+  cmp     dl, ZERO ; Check whether an alignment is needed.
   je      call_debug
   sub     rsp, STACK_CHUNK ; Aligning stack in order to suffice ABI.
 
@@ -337,12 +336,10 @@ parsing_character_finished:
 traversal_finished:
   pop     rax ; Obtain the returning value.
   mov     rsp, rbp ; Move to the correct frame.
-  push    r15 ; Push return address.
 
 ; Recovering registers in order to suffice ABI.
 recover_registers:
   mov     rsp, rbp ; Get the correct frame.
-  pop     r15
   pop     r14
   pop     r13
   pop     r12
