@@ -70,7 +70,8 @@ notec:
   xor     rbx, rbx ; Number writing mode off.
 
 read_data:
-  movzx   dl, byte [r14] ; Get one ASCIIZ character.
+  xor     rdx, rdx
+  mov     dl, byte [r14] ; Get one ASCIIZ character.
   test    dl, dl ; Check for \0.
   je      traversal_finished ; No more characters to read.
 
@@ -113,12 +114,12 @@ parse_number:
   pop     rax
   lea     rax, [rax*8]
   lea     rax, [rax*2]
-  add     rax, dl
+  add     rax, rdx
   push    rax
   jmp     parsing_character_finished
 
 add_new_number_to_stack:
-  push    dl ; Pushing new number onto the stack.
+  push    rdx ; Pushing new number onto the stack.
   mov     rbx, WRI_NUMBER_MODE_ON ; Turn on writing number mode.
   jmp     parsing_character_finished
 
