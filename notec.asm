@@ -42,7 +42,6 @@ align 8
 
 which_notec_to_wait_for resq N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
-is_the_notec_working    resq N ; 0 if notec's instance is off, 1 otherwise.
 
 section .text
 
@@ -63,10 +62,7 @@ notec:
   ; Mechanism to prevent mistakes considering 'w' operation with notec number 0.
   mov     r8, which_notec_to_wait_for
   mov     [r8+r13*8], r13
-  
-  mov     r8, is_the_notec_working
-  mov     rax, NOTEC_AT_WORK
-  mov     [r8+r13*8], rax ; Notec nubmer r13 was started.
+
   xor     rbx, rbx ; Number writing mode off.
 
 read_data:
@@ -273,55 +269,46 @@ check_W_char:
   mov     [r8+r13*8], rax ; Notec is waiting for notec with rax number.
   cmp     r13, rax
   je      parsing_character_finished ; Undefined operation.
-  jg      wait_for_notec_with_smaller_number ; Bigger notec.
+  jl      wait_for_notec_with_bigger_number ; Smaller notec.
 
 ; In order to synchronize only mov atomicity is used.
 ; Bigger notec means an instance with bigger number.
 
-; This is performed only by smaller notec. Checks whether notec with
-; bigger number was even called.
-is_notec_with_bigger_number_on:
-  mov     r8, is_the_notec_working
-  xor     r9, r9
-  mov     r9, [r8+rax*8]
-  cmp     r9, NOTEC_AT_WORK
-  jne     is_notec_with_bigger_number_on
-
 ; Waiting for bigger notec to finally swap elements.
-is_notec_with_bigger_number_waiting_for_me:
+is_notec_with_smaller_number_waiting_for_me:
   mov     r8, which_notec_to_wait_for
   mov     r9, [r8+rax*8]
   cmp     r13, r9
-  jne     is_notec_with_bigger_number_waiting_for_me
+  jne     is_notec_with_smaller_number_waiting_for_me
 
-; The swap can be performed. It is performed by smaller notec.
+; The swap can be performed. It is performed by bigger notec.
 exchange_stack_top_elements:
   mov     r8, top_stack_number
 
   ; Get top elements.
-  mov     r10, [r8+r13*8] ; Smaller notec's top element.
-  mov     r11, [r8+rax*8] ; Bigger notec's top element.
+  mov     r10, [r8+r13*8] ; Bigger notec's top element.
+  mov     r11, [r8+rax*8] ; Smaller notec's top element.
 
   ; Swap top elements.
   mov     [r8+rax*8], r10
   mov     [r8+r13*8], r11
 
-  push    r11 ; Adjust top stack number of smaller notec.
+  push    r11 ; Adjust top stack number of bigger notec.
 
-    ; Signalizing the bigger notec that the swap had been performed.
+  ; Signalizing the bigger smaller that the swap had been performed.
   mov     r8, which_notec_to_wait_for
   mov     r9, EXCHANGE_DONE
   mov     [r8+rax*8], r9
   jmp     parsing_character_finished
 
 ; Wait performed by bigger notec.
-wait_for_notec_with_smaller_number:
+wait_for_notec_with_bigger_number:
   mov     r8, which_notec_to_wait_for
   mov     rax, [r8+r13*8]
   cmp     rax, EXCHANGE_DONE ; Checking whether the swap has been performed.
-  jne     wait_for_notec_with_smaller_number
+  jne     wait_for_notec_with_bigger_number
 
-  ; Adjust stack top of bigger notec.
+  ; Adjust stack top of smaller notec.
   mov     r8, top_stack_number
   mov     rax, [r8+r13*8]
   push    rax
