@@ -298,7 +298,7 @@ exchange_stack_top_elements:
   mov     [r8+rax*8], rax
   jmp     parsing_character_finished
 
-; Wait performed by bigger notec.
+; Wait performed by smaller notec.
 wait_for_notec_with_bigger_number:
   mov     r8, which_notec_to_wait_for
   mov     rax, [r8+r13*8]
