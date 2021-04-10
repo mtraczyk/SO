@@ -295,7 +295,7 @@ exchange_stack_top_elements:
 
   push    r11 ; Adjust top stack number of bigger notec.
 
-  ; Signalizing the bigger smaller that the swap had been performed.
+  ; Signalizing the smaller notec that the swap had been performed.
   mov     r8, which_notec_to_wait_for
   mov     r9, EXCHANGE_DONE
   mov     [r8+rax*8], r9
