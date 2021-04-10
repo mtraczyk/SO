@@ -33,14 +33,11 @@ W_CHAR                  equ 87  ; ASCII for 'W' character.
 NOTEC_AT_WORK           equ 1   ; Notec's instance is on.
 ALIGNMENT_CONST         equ 16  ; ABI stack before call alignment constant.
 
-; which_notec_to_wait_for equals -1 after a swap is done.
-EXCHANGE_DONE           equ -1
-
 section .bss
 
 align 8
 
-which_notec_to_wait_for resq N ; Used when W appears.
+which_notec_to_wait_for resd N ; Used when W appears.
 top_stack_number        resq N ; Used to store top stack numbers.
 
 section .text
@@ -275,8 +272,9 @@ check_W_char:
 ; Bigger notec means an instance with bigger number.
 
 ; Waiting for bigger notec to finally swap elements.
-is_notec_with_smaller_number_waiting_for_me:
   mov     r8, which_notec_to_wait_for
+
+is_notec_with_smaller_number_waiting_for_me:
   mov     r9, [r8+rax*8]
   cmp     r13, r9
   jne     is_notec_with_smaller_number_waiting_for_me
@@ -295,17 +293,16 @@ exchange_stack_top_elements:
 
   push    r11 ; Adjust top stack number of bigger notec.
 
-  ; Signalizing the bigger smaller that the swap had been performed.
+  ; Signalizing the smaller number that the swap had been performed.
   mov     r8, which_notec_to_wait_for
-  mov     r9, EXCHANGE_DONE
-  mov     [r8+rax*8], r9
+  mov     [r8+rax*8], rax
   jmp     parsing_character_finished
 
 ; Wait performed by bigger notec.
 wait_for_notec_with_bigger_number:
   mov     r8, which_notec_to_wait_for
   mov     rax, [r8+r13*8]
-  cmp     rax, EXCHANGE_DONE ; Checking whether the swap has been performed.
+  cmp     rax, r13; Checking whether the swap has been performed.
   jne     wait_for_notec_with_bigger_number
 
   ; Adjust stack top of smaller notec.
